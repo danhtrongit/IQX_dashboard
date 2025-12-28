@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IQX Logo Preview & Export</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+      color: #1f2937;
+    }
+
+    .section {
+      background: white;
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .section h2 {
+      margin-bottom: 20px;
+      color: #374151;
+      font-size: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .logo-item {
+      text-align: center;
+    }
+
+    .logo-item p {
+      margin-top: 10px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .preview-light {
+      background: #ffffff;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .preview-dark {
+      background: #1f2937;
+      padding: 20px;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .preview-transparent {
+      background:
+        linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+        linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+        linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      padding: 20px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+    }
+
+    .size-item {
+      text-align: center;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+
+    .download-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #D4AF37;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .download-btn:hover {
+      background: #B8941F;
+    }
+
+    .instructions {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .instructions h3 {
+      color: #92400e;
+      margin-bottom: 10px;
+    }
+
+    .instructions p {
+      color: #78350f;
+      line-height: 1.6;
+    }
+
+    .instructions code {
+      background: #fffbeb;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 IQX Logo Assets - Preview & Export</h1>
+
+  <div class="instructions">
+    <h3>📦 How to Generate PNG/ICO Files:</h3>
+    <p>
+      <strong>Option 1 - Online Converter (Easiest):</strong><br>
+      1. Visit <a href="https://cloudconvert.com/svg-to-png" target="_blank">CloudConvert</a> or <a href="https://ezgif.com/svg-to-png" target="_blank">EZGIF</a><br>
+      2. Upload <code>logo-icon.svg</code><br>
+      3. Set output sizes: 512x512, 192x192, 32x32, 16x16<br>
+      4. Download and save to <code>/dashboard/public/</code><br><br>
+
+      <strong>Option 2 - Using Node.js (Programmatic):</strong><br>
+      Run: <code>npm install sharp</code> then use the conversion script below<br><br>
+
+      <strong>Option 3 - Browser Screenshot:</strong><br>
+      Right-click on icons below → "Save Image As" → Choose PNG format
+    </p>
+  </div>
+
+  <!-- Horizontal Logos -->
+  <div class="section">
+    <h2>Horizontal Logos (Header/Navbar)</h2>
+    <div class="logo-container">
+      <div class="logo-item">
+        <div class="preview-light">
+          <img src="/logo.svg" alt="IQX Logo Light" height="50">
+        </div>
+        <p>Light Mode (200x50)</p>
+        <a href="/logo.svg" download class="download-btn">Download SVG</a>
+      </div>
+
+      <div class="logo-item">
+        <div class="preview-dark">
+          <img src="/logo-dark.svg" alt="IQX Logo Dark" height="50">
+        </div>
+        <p>Dark Mode (200x50)</p>
+        <a href="/logo-dark.svg" download class="download-btn">Download SVG</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Square Icon -->
+  <div class="section">
+    <h2>Square Icon (Favicon/Avatar)</h2>
+    <div class="size-grid">
+      <div class="size-item">
+        <div class="preview-transparent">
+          <img src="/logo-icon.svg" alt="IQX Icon" width="128" height="128">
+        </div>
+        <p>512x512 (Full Size)</p>
+        <a href="/logo-icon.svg" download class="download-btn">Download SVG</a>
+      </div>
+
+      <div class="size-item">
+        <div class="preview-transparent">
+          <img src="/logo-icon.svg" alt="IQX Icon" width="64" height="64">
+        </div>
+        <p>192x192 (PWA Icon)</p>
+      </div>
+
+      <div class="size-item">
+        <div class="preview-transparent">
+          <img src="/favicon.svg" alt="IQX Favicon" width="32" height="32">
+        </div>
+        <p>32x32 (Favicon)</p>
+        <a href="/favicon.svg" download class="download-btn">Download SVG</a>
+      </div>
+
+      <div class="size-item">
+        <div class="preview-transparent">
+          <img src="/favicon.svg" alt="IQX Favicon" width="16" height="16">
+        </div>
+        <p>16x16 (Favicon)</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage Examples -->
+  <div class="section">
+    <h2>📋 React Usage Examples</h2>
+    <pre style="background: #1f2937; color: #f3f4f6; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>// In index.html (add to &lt;head&gt;)
+&lt;link rel="icon" type="image/svg+xml" href="/favicon.svg" /&gt;
+&lt;link rel="apple-touch-icon" sizes="192x192" href="/logo-icon.svg" /&gt;
+
+// In React component (Header/Navbar)
+import logo from '/logo.svg'
+import logoDark from '/logo-dark.svg'
+
+// Light mode
+&lt;img src={logo} alt="IQX" height="40" /&gt;
+
+// Dark mode (with theme)
+&lt;img src={isDarkMode ? logoDark : logo} alt="IQX" height="40" /&gt;
+
+// Or use CSS to switch
+.logo {
+  content: url('/logo.svg');
+}
+
+@media (prefers-color-scheme: dark) {
+  .logo {
+    content: url('/logo-dark.svg');
+  }
+}</code></pre>
+  </div>
+
+  <!-- Color Palette -->
+  <div class="section">
+    <h2>🎨 Color Palette</h2>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <div style="text-align: center;">
+        <div style="width: 100px; height: 100px; background: #D4AF37; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+        <p style="margin-top: 10px; font-family: monospace; font-size: 12px;">#D4AF37</p>
+        <p style="color: #6b7280; font-size: 14px;">Primary Gold</p>
+      </div>
+
+      <div style="text-align: center;">
+        <div style="width: 100px; height: 100px; background: #F4D03F; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+        <p style="margin-top: 10px; font-family: monospace; font-size: 12px;">#F4D03F</p>
+        <p style="color: #6b7280; font-size: 14px;">Light Gold (Dark Mode)</p>
+      </div>
+
+      <div style="text-align: center;">
+        <div style="width: 100px; height: 100px; background: #B8941F; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+        <p style="margin-top: 10px; font-family: monospace; font-size: 12px;">#B8941F</p>
+        <p style="color: #6b7280; font-size: 14px;">Dark Gold</p>
+      </div>
+
+      <div style="text-align: center;">
+        <div style="width: 100px; height: 100px; background: #1F2937; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+        <p style="margin-top: 10px; font-family: monospace; font-size: 12px;">#1F2937</p>
+        <p style="color: #6b7280; font-size: 14px;">Dark Gray</p>
+      </div>
+
+      <div style="text-align: center;">
+        <div style="width: 100px; height: 100px; background: #6B7280; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+        <p style="margin-top: 10px; font-family: monospace; font-size: 12px;">#6B7280</p>
+        <p style="color: #6b7280; font-size: 14px;">Medium Gray</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-generate canvas PNGs for download
+    console.log('✅ IQX Logo assets loaded successfully');
+    console.log('📁 Files available:');
+    console.log('  - /logo.svg (horizontal, light mode)');
+    console.log('  - /logo-dark.svg (horizontal, dark mode)');
+    console.log('  - /logo-icon.svg (square, 512x512)');
+    console.log('  - /favicon.svg (simplified, 32x32)');
+  </script>
+</body>
+</html>

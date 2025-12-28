@@ -1,0 +1,111 @@
+/**
+ * TradingView Custom Styles for Vietnam Stock Dashboard
+ * Matches the dark theme of the application
+ */
+
+/* Main container */
+.chart-container {
+    background-color: #0a0a0a !important;
+}
+
+/* Header styling */
+.header-chart-panel {
+    background-color: #0a0a0a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Toolbar */
+.chart-toolbar {
+    background-color: #0a0a0a !important;
+}
+
+/* Price scale */
+.price-axis {
+    background-color: transparent !important;
+}
+
+/* Time scale */
+.time-axis {
+    background-color: transparent !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3b3b3b;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4a;
+}
+
+/* Dialog styling */
+.tv-dialog {
+    background-color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* Button styling */
+.button-2ioYhFEY {
+    border-radius: 6px !important;
+}
+
+/* Study legend */
+.study-legend {
+    background-color: rgba(10, 10, 10, 0.9) !important;
+}
+
+/* Tooltip */
+.chart-tooltip {
+    background-color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+}
+
+/* Context menu */
+.context-menu {
+    background-color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* Drawing toolbar */
+.drawing-toolbar {
+    background-color: #0a0a0a !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Symbol info */
+.symbol-info {
+    color: #e5e7eb !important;
+}
+
+/* Price display */
+.price-display {
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Green/Red colors for Vietnam market */
+.positive-change {
+    color: #00c076 !important;
+}
+
+.negative-change {
+    color: #ff3a3a !important;
+}
+
+/* Loading spinner */
+.tv-spinner {
+    border-color: #3b82f6 !important;
+    border-top-color: transparent !important;
+}
