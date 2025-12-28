@@ -112,10 +112,10 @@ export function RightQuickNav({
                     onClick={() => onPanelChange?.('ai')}
                 />
 
-                {/* Trading Analysis - Arix Panel */}
+                {/* Arix Hub - Arix Panel */}
                 <NavItem
                     icon={BarChart3}
-                    label="Trading Analysis"
+                    label="Arix Hub"
                     isExpanded={isExpanded}
                     isActive={activePanel === 'arix'}
                     onClick={() => onPanelChange?.('arix')}

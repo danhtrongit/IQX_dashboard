@@ -5,7 +5,6 @@ import { LineChart, BarChart2 } from "lucide-react";
 import { WorkspaceLayout } from "../layout/WorkspaceLayout";
 import { TradingViewChart } from "../features/chart/TradingViewChart";
 import { AnalysisPanel } from "../features/analysis2/AnalysisPanel";
-import { SEO } from "@/components/seo/SEO";
 import { cn } from "@/lib/utils";
 
 type HomeTabType = 'chart' | 'analysis';
@@ -54,21 +53,18 @@ export function HomePage() {
     const symbol = 'VNINDEX';
 
     return (
-        <>
-            <SEO />
-            <WorkspaceLayout
-                header={
-                    <HomeHeader
-                        activeTab={activeTab}
-                        onTabChange={setActiveTab}
-                    />
-                }
-            >
-                {activeTab === 'chart'
-                    ? <TradingViewChart symbol={symbol} />
-                    : <AnalysisPanel />
-                }
-            </WorkspaceLayout>
-        </>
+        <WorkspaceLayout
+            header={
+                <HomeHeader
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                />
+            }
+        >
+            {activeTab === 'chart'
+                ? <TradingViewChart symbol={symbol} />
+                : <AnalysisPanel />
+            }
+        </WorkspaceLayout>
     );
 }

@@ -23,9 +23,6 @@ export function TopHeader() {
             <div className="flex items-center gap-8">
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <ThemeAwareLogo className="h-8 w-auto" />
-                    <span className="text-lg font-bold tracking-tight hidden md:block">
-                        IQX
-                    </span>
                 </Link>
 
                 {/* Main Menu */}

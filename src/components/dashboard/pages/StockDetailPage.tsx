@@ -28,7 +28,6 @@ import {
     AnalysisReportsTab,
     TechnicalAnalysisTab
 } from "../features/stock-info";
-import { StockSEO } from "@/components/seo/SEO";
 import { cn } from "@/lib/utils";
 
 // Tab types
@@ -254,32 +253,17 @@ export function StockDetailPage() {
 
     // Main content
     return (
-        <>
-            <StockSEO
-                symbol={symbol || ''}
-                companyName={stockData.organ_short_name ?? undefined}
-                fullName={stockData.organ_name ?? undefined}
-                exchange={stockData.exchange ?? undefined}
-                industry={stockData.icb_name2 ?? undefined}
-                price={priceInfo?.price ?? undefined}
-                percentChange={priceInfo?.change_percent ?? undefined}
-                marketCap={stockDetail?.market_cap}
-                pe={stockDetail?.pe}
-                pb={stockDetail?.pb}
-                eps={stockDetail?.eps}
-            />
-            <WorkspaceLayout
-                header={
-                    <StockHeader
-                        activeTab={activeTab}
-                        onTabChange={handleTabChange}
-                        icbName={stockData.icb_name2 ?? undefined}
-                        onBack={handleBack}
-                    />
-                }
-            >
-                {symbol && <TabContent activeTab={activeTab} symbol={symbol} />}
-            </WorkspaceLayout>
-        </>
+        <WorkspaceLayout
+            header={
+                <StockHeader
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                    icbName={stockData.icb_name2 ?? undefined}
+                    onBack={handleBack}
+                />
+            }
+        >
+            {symbol && <TabContent activeTab={activeTab} symbol={symbol} />}
+        </WorkspaceLayout>
     );
 }
