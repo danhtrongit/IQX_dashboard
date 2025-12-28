@@ -3,14 +3,10 @@
 import { useState, useMemo } from "react";
 import {
     TrendingUp,
-    TrendingDown,
     Target,
     Briefcase,
     BarChart3,
-    Calendar,
-    Percent,
     DollarSign,
-    Clock,
     Trophy,
     AlertTriangle,
 } from "lucide-react";

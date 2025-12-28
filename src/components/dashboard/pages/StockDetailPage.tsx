@@ -16,8 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SymbolsAPI, type SymbolResponse } from "@/lib/symbols-api";
-import { CompanyAPI, type StockDetailResponse } from "@/lib/stock-api";
-import { QuotesAPI, normalizePriceInfo, type PriceInfo } from "@/lib/trading-api";
 import { WorkspaceLayout } from "../layout/WorkspaceLayout";
 import { TradingViewChart } from "../features/chart/TradingViewChart";
 import {
@@ -177,8 +175,6 @@ export function StockDetailPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [stockData, setStockData] = useState<SymbolResponse | null>(null);
-    const [stockDetail, setStockDetail] = useState<StockDetailResponse | null>(null);
-    const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -209,19 +205,9 @@ export function StockDetailPage() {
 
             try {
                 const upperSymbol = symbol.toUpperCase();
-                // Fetch symbol info, stock detail, and realtime price in parallel
-                const [symbolData, detailData, priceData] = await Promise.all([
-                    SymbolsAPI.getBySymbol(upperSymbol),
-                    CompanyAPI.getStockDetail(upperSymbol).catch(() => null),
-                    QuotesAPI.getPriceBoard([upperSymbol]).catch(() => null),
-                ]);
+                // Fetch symbol info only (detail and price not needed without SEO)
+                const symbolData = await SymbolsAPI.getBySymbol(upperSymbol);
                 setStockData(symbolData);
-                setStockDetail(detailData);
-
-                // Get realtime price from QuotesAPI
-                if (priceData?.data && priceData.data.length > 0) {
-                    setPriceInfo(normalizePriceInfo(priceData.data[0]));
-                }
             } catch (err) {
                 console.error("Failed to fetch stock data:", err);
                 setError("Không thể tải thông tin cổ phiếu");
