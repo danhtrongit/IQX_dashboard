@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, X, TrendingUp, Loader2 } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -225,7 +225,7 @@ export function StockSearch() {
                                         key={item.id}
                                         onClick={() => handleSelect(item.symbol)}
                                         className={`
-                                            w-full grid grid-cols-[40px_1fr] gap-3 px-3 py-2.5 rounded-lg
+                                            w-full flex items-center justify-between px-3 py-2.5 rounded-lg
                                             text-left transition-colors cursor-pointer
                                             ${selectedIndex === index
                                                 ? "bg-accent"
@@ -233,11 +233,6 @@ export function StockSearch() {
                                             }
                                         `}
                                     >
-                                        {/* Stock icon */}
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                            <TrendingUp className="h-4 w-4" />
-                                        </div>
-
                                         {/* Content */}
                                         <div className="min-w-0 flex flex-col justify-center gap-1">
                                             {/* Row 1: Symbol + Badges */}
