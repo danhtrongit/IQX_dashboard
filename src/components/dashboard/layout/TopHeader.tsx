@@ -12,9 +12,9 @@ export function TopHeader() {
     const menuItems = [
         { label: "Giao dịch", path: "/" },
         { label: "Bảng giá", path: "/bang-gia" },
-        { label: "Lọc cổ phiếu", path: "/" },
-        { label: "Sàn bot", path: "/" },
-        { label: "Gói dịch vụ", path: "/" },
+        { label: "Lọc cổ phiếu", path: "/loc-co-phieu" },
+        { label: "Sàn bot", path: "/san-bot" },
+        { label: "Gói dịch vụ", path: "/goi-dich-vu" },
     ];
 
     return (

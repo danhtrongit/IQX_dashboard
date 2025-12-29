@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
     TrendingUp,
     Target,
@@ -10,17 +10,6 @@ import {
     Trophy,
     AlertTriangle,
 } from "lucide-react";
-import {
-    ScatterChart,
-    Scatter,
-    XAxis,
-    YAxis,
-    ZAxis,
-    Tooltip,
-    ResponsiveContainer,
-    ReferenceLine,
-    Cell,
-} from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +54,7 @@ interface TooltipPayload {
     quantity: number;
 }
 
+// ==================== Custom Tooltip ====================
 function CustomTooltip({
     active,
     payload,
@@ -230,19 +220,532 @@ function PlanItem({ plan }: { plan: ArixPlanItem }) {
     );
 }
 
+// ==================== SVG Bubble Chart ====================
+interface BubbleDataPoint {
+    symbol: string;
+    x: number;
+    y: number;
+    z: number;
+    profitLoss: number;
+    buyDate: string;
+    sellDate: string;
+    buyPrice: number;
+    sellPrice: number;
+    quantity: number;
+    isProfit: boolean;
+}
+
+interface DraggableBubbleChartProps {
+    data: BubbleDataPoint[];
+    width: number;
+    height: number;
+    onBubbleClick: (bubble: BubbleDataPoint) => void;
+    hoveredIndex: number | null;
+    setHoveredIndex: (index: number | null) => void;
+}
+
+function DraggableBubbleChart({
+    data,
+    width,
+    height,
+    onBubbleClick,
+    hoveredIndex,
+    setHoveredIndex,
+}: DraggableBubbleChartProps) {
+    const [bubblePositions, setBubblePositions] = useState<{ x: number; y: number; vx: number; vy: number }[]>([]);
+    const [draggedBubbleIndex, setDraggedBubbleIndex] = useState<number | null>(null);
+    const [tooltipData, setTooltipData] = useState<{
+        bubble: BubbleDataPoint;
+        x: number;
+        y: number;
+    } | null>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const animationFrameRef = useRef<number>(0);
+
+    // Chart margins and dimensions
+    const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
+
+    // Calculate scales
+    const xExtent = useMemo(() => {
+        const values = data.map((d) => d.x);
+        return { min: Math.min(...values), max: Math.max(...values) };
+    }, [data]);
+
+    const yExtent = useMemo(() => {
+        const values = data.map((d) => d.y);
+        return { min: Math.min(...values), max: Math.max(...values) };
+    }, [data]);
+
+    const zExtent = useMemo(() => {
+        const values = data.map((d) => Math.abs(d.z));
+        return { min: Math.min(...values), max: Math.max(...values) };
+    }, [data]);
+
+    // Scale functions
+    const xScale = (value: number) => {
+        const range = xExtent.max - xExtent.min || 1;
+        return ((value - xExtent.min) / range) * chartWidth;
+    };
+
+    const yScale = (value: number) => {
+        const range = yExtent.max - yExtent.min || 1;
+        return chartHeight - ((value - yExtent.min) / range) * chartHeight;
+    };
+
+    const radiusScale = (value: number) => {
+        const range = zExtent.max - zExtent.min || 1;
+        const normalized = (Math.abs(value) - zExtent.min) / range;
+        return 8 + normalized * 30; // radius between 8 and 38
+    };
+
+    // Get bubble radii
+    const bubbleRadii = useMemo(() => data.map((d) => radiusScale(d.z)), [data, zExtent]);
+
+    // Initialize bubble positions from data with velocity
+    useEffect(() => {
+        if (bubblePositions.length === 0 && chartWidth > 0 && chartHeight > 0) {
+            const positions = data.map((d) => ({
+                x: xScale(d.x),
+                y: yScale(d.y),
+                vx: 0,
+                vy: 0,
+            }));
+            setBubblePositions(positions);
+        }
+    }, [data, bubblePositions.length, chartWidth, chartHeight]);
+
+    // Physics simulation with collision detection
+    useEffect(() => {
+        if (bubblePositions.length === 0 || draggedBubbleIndex !== null) return;
+
+        const animate = () => {
+            setBubblePositions((prevPositions) => {
+                const newPositions = prevPositions.map((pos, i) => {
+                    const radius = bubbleRadii[i];
+                    let { x, y, vx, vy } = pos;
+
+                    // Apply velocity
+                    x += vx;
+                    y += vy;
+
+                    // Friction
+                    vx *= 0.98;
+                    vy *= 0.98;
+
+                    // Boundary collision (walls)
+                    if (x - radius < 0) {
+                        x = radius;
+                        vx = Math.abs(vx) * 0.8; // Bounce with energy loss
+                    } else if (x + radius > chartWidth) {
+                        x = chartWidth - radius;
+                        vx = -Math.abs(vx) * 0.8;
+                    }
+
+                    if (y - radius < 0) {
+                        y = radius;
+                        vy = Math.abs(vy) * 0.8;
+                    } else if (y + radius > chartHeight) {
+                        y = chartHeight - radius;
+                        vy = -Math.abs(vy) * 0.8;
+                    }
+
+                    return { x, y, vx, vy };
+                });
+
+                // Bubble-to-bubble collision detection
+                for (let i = 0; i < newPositions.length; i++) {
+                    for (let j = i + 1; j < newPositions.length; j++) {
+                        const pos1 = newPositions[i];
+                        const pos2 = newPositions[j];
+                        const r1 = bubbleRadii[i];
+                        const r2 = bubbleRadii[j];
+
+                        const dx = pos2.x - pos1.x;
+                        const dy = pos2.y - pos1.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDistance = r1 + r2;
+
+                        // Check collision
+                        if (distance < minDistance && distance > 0) {
+                            // Normalize collision vector
+                            const nx = dx / distance;
+                            const ny = dy / distance;
+
+                            // Relative velocity
+                            const dvx = pos2.vx - pos1.vx;
+                            const dvy = pos2.vy - pos1.vy;
+                            const dvn = dvx * nx + dvy * ny;
+
+                            // Don't resolve if velocities are separating
+                            if (dvn < 0) continue;
+
+                            // Separate overlapping bubbles
+                            const overlap = minDistance - distance;
+                            const separationX = (overlap / 2) * nx;
+                            const separationY = (overlap / 2) * ny;
+
+                            pos1.x -= separationX;
+                            pos1.y -= separationY;
+                            pos2.x += separationX;
+                            pos2.y += separationY;
+
+                            // Bounce - exchange velocities along collision normal
+                            const restitution = 0.7; // Bounciness factor
+                            const impulse = (1 + restitution) * dvn / 2;
+
+                            pos1.vx += impulse * nx;
+                            pos1.vy += impulse * ny;
+                            pos2.vx -= impulse * nx;
+                            pos2.vy -= impulse * ny;
+                        }
+                    }
+                }
+
+                return newPositions;
+            });
+
+            animationFrameRef.current = requestAnimationFrame(animate);
+        };
+
+        animationFrameRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, [bubblePositions.length, draggedBubbleIndex, bubbleRadii, chartWidth, chartHeight]);
+
+    // Generate axis ticks
+    const xTicks = useMemo(() => {
+        const ticks: number[] = [];
+        const range = xExtent.max - xExtent.min;
+        const step = Math.ceil(range / 5);
+        for (let i = 0; i <= 5; i++) {
+            ticks.push(Math.round(xExtent.min + step * i));
+        }
+        return ticks;
+    }, [xExtent]);
+
+    const yTicks = useMemo(() => {
+        const ticks: number[] = [];
+        const range = yExtent.max - yExtent.min;
+        const step = Math.ceil(range / 5);
+        for (let i = 0; i <= 5; i++) {
+            ticks.push(Math.round(yExtent.min + step * i));
+        }
+        return ticks;
+    }, [yExtent]);
+
+    // Drag handlers
+    const dragStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
+
+    const handleMouseDown = (index: number, e: React.MouseEvent) => {
+        e.preventDefault();
+        setDraggedBubbleIndex(index);
+        const svg = svgRef.current;
+        if (!svg) return;
+        const rect = svg.getBoundingClientRect();
+        dragStartPos.current = {
+            x: e.clientX - rect.left - margin.left,
+            y: e.clientY - rect.top - margin.top,
+            time: Date.now(),
+        };
+    };
+
+    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (draggedBubbleIndex === null) return;
+
+        const svg = svgRef.current;
+        if (!svg) return;
+
+        const rect = svg.getBoundingClientRect();
+        const radius = bubbleRadii[draggedBubbleIndex];
+        const x = Math.max(radius, Math.min(chartWidth - radius, e.clientX - rect.left - margin.left));
+        const y = Math.max(radius, Math.min(chartHeight - radius, e.clientY - rect.top - margin.top));
+
+        setBubblePositions((prev) => {
+            const newPositions = [...prev];
+            newPositions[draggedBubbleIndex] = { ...newPositions[draggedBubbleIndex], x, y };
+            return newPositions;
+        });
+    };
+
+    const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (draggedBubbleIndex === null) return;
+
+        // Calculate velocity based on drag movement
+        if (dragStartPos.current) {
+            const svg = svgRef.current;
+            if (svg) {
+                const rect = svg.getBoundingClientRect();
+                const endX = e.clientX - rect.left - margin.left;
+                const endY = e.clientY - rect.top - margin.top;
+                const deltaTime = Date.now() - dragStartPos.current.time;
+
+                if (deltaTime > 0) {
+                    const vx = (endX - dragStartPos.current.x) / deltaTime * 16; // Scale to 60fps
+                    const vy = (endY - dragStartPos.current.y) / deltaTime * 16;
+
+                    // Add velocity to the bubble
+                    setBubblePositions((prev) => {
+                        const newPositions = [...prev];
+                        newPositions[draggedBubbleIndex] = {
+                            ...newPositions[draggedBubbleIndex],
+                            vx: vx * 0.5, // Dampen the throw
+                            vy: vy * 0.5,
+                        };
+                        return newPositions;
+                    });
+                }
+            }
+        }
+
+        setDraggedBubbleIndex(null);
+        dragStartPos.current = null;
+    };
+
+    const handleBubbleMouseEnter = (bubble: BubbleDataPoint, index: number, e: React.MouseEvent) => {
+        if (draggedBubbleIndex === null) {
+            setHoveredIndex(index);
+            const svg = svgRef.current;
+            if (!svg) return;
+            const rect = svg.getBoundingClientRect();
+            setTooltipData({
+                bubble,
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            });
+        }
+    };
+
+    const handleBubbleMouseLeave = () => {
+        setHoveredIndex(null);
+        setTooltipData(null);
+    };
+
+    if (bubblePositions.length === 0) return null;
+
+    return (
+        <div className="relative w-full h-full">
+            <svg
+                ref={svgRef}
+                width={width}
+                height={height}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                className="select-none"
+            >
+                <g transform={`translate(${margin.left},${margin.top})`}>
+                    {/* Grid lines */}
+                    {yTicks.map((tick) => (
+                        <line
+                            key={`grid-y-${tick}`}
+                            x1={0}
+                            y1={yScale(tick)}
+                            x2={chartWidth}
+                            y2={yScale(tick)}
+                            stroke="hsl(var(--border))"
+                            strokeOpacity={0.2}
+                            strokeDasharray="2,2"
+                        />
+                    ))}
+                    {xTicks.map((tick) => (
+                        <line
+                            key={`grid-x-${tick}`}
+                            x1={xScale(tick)}
+                            y1={0}
+                            x2={xScale(tick)}
+                            y2={chartHeight}
+                            stroke="hsl(var(--border))"
+                            strokeOpacity={0.2}
+                            strokeDasharray="2,2"
+                        />
+                    ))}
+
+                    {/* Zero line */}
+                    <line
+                        x1={0}
+                        y1={yScale(0)}
+                        x2={chartWidth}
+                        y2={yScale(0)}
+                        stroke="hsl(var(--border))"
+                        strokeWidth={1.5}
+                        strokeDasharray="3,3"
+                    />
+
+                    {/* X Axis */}
+                    <line
+                        x1={0}
+                        y1={chartHeight}
+                        x2={chartWidth}
+                        y2={chartHeight}
+                        stroke="hsl(var(--border))"
+                        strokeWidth={1}
+                    />
+                    {xTicks.map((tick) => (
+                        <g key={`x-tick-${tick}`}>
+                            <line
+                                x1={xScale(tick)}
+                                y1={chartHeight}
+                                x2={xScale(tick)}
+                                y2={chartHeight + 5}
+                                stroke="hsl(var(--border))"
+                            />
+                            <text
+                                x={xScale(tick)}
+                                y={chartHeight + 18}
+                                textAnchor="middle"
+                                fontSize="10"
+                                fill="hsl(var(--muted-foreground))"
+                            >
+                                {tick}
+                            </text>
+                        </g>
+                    ))}
+                    <text
+                        x={chartWidth / 2}
+                        y={chartHeight + 35}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fill="hsl(var(--muted-foreground))"
+                    >
+                        Ngày giữ
+                    </text>
+
+                    {/* Y Axis */}
+                    <line
+                        x1={0}
+                        y1={0}
+                        x2={0}
+                        y2={chartHeight}
+                        stroke="hsl(var(--border))"
+                        strokeWidth={1}
+                    />
+                    {yTicks.map((tick) => (
+                        <g key={`y-tick-${tick}`}>
+                            <line
+                                x1={-5}
+                                y1={yScale(tick)}
+                                x2={0}
+                                y2={yScale(tick)}
+                                stroke="hsl(var(--border))"
+                            />
+                            <text
+                                x={-8}
+                                y={yScale(tick)}
+                                textAnchor="end"
+                                alignmentBaseline="middle"
+                                fontSize="10"
+                                fill="hsl(var(--muted-foreground))"
+                            >
+                                {tick}%
+                            </text>
+                        </g>
+                    ))}
+                    <text
+                        x={-35}
+                        y={chartHeight / 2}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fill="hsl(var(--muted-foreground))"
+                        transform={`rotate(-90, -35, ${chartHeight / 2})`}
+                    >
+                        Return %
+                    </text>
+
+                    {/* Bubbles */}
+                    {data.map((bubble, index) => {
+                        const pos = bubblePositions[index];
+                        const radius = radiusScale(bubble.z);
+                        const isHovered = hoveredIndex === index;
+                        const isDragging = draggedBubbleIndex === index;
+                        const isOtherHovered = hoveredIndex !== null && !isHovered;
+
+                        return (
+                            <g key={`bubble-${index}`}>
+                                <circle
+                                    cx={pos.x}
+                                    cy={pos.y}
+                                    r={radius}
+                                    fill={bubble.isProfit ? "#22c55e" : "#ef4444"}
+                                    fillOpacity={isOtherHovered ? 0.2 : isDragging ? 0.8 : 0.6}
+                                    stroke={bubble.isProfit ? "#16a34a" : "#dc2626"}
+                                    strokeWidth={isHovered || isDragging ? 2 : 1}
+                                    className="transition-all cursor-grab active:cursor-grabbing"
+                                    onMouseDown={(e) => handleMouseDown(index, e)}
+                                    onMouseEnter={(e) => handleBubbleMouseEnter(bubble, index, e)}
+                                    onMouseLeave={handleBubbleMouseLeave}
+                                    onClick={() => onBubbleClick(bubble)}
+                                />
+                                {(isHovered || isDragging) && (
+                                    <text
+                                        x={pos.x}
+                                        y={pos.y}
+                                        textAnchor="middle"
+                                        alignmentBaseline="middle"
+                                        fontSize="11"
+                                        fontWeight="bold"
+                                        fill="white"
+                                        pointerEvents="none"
+                                    >
+                                        {bubble.symbol}
+                                    </text>
+                                )}
+                            </g>
+                        );
+                    })}
+                </g>
+            </svg>
+
+            {/* Tooltip */}
+            {tooltipData && !draggedBubbleIndex && (
+                <div
+                    className="absolute pointer-events-none z-50"
+                    style={{
+                        left: tooltipData.x + 10,
+                        top: tooltipData.y - 10,
+                    }}
+                >
+                    <CustomTooltip
+                        active={true}
+                        payload={[{ payload: tooltipData.bubble }]}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ==================== Main Panel ====================
 export function ArixPanel() {
     const [activeTab, setActiveTab] = useState<"chart" | "hold" | "plan">("chart");
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const [chartDimensions, setChartDimensions] = useState({ width: 400, height: 400 });
+    const chartContainerRef = useRef<HTMLDivElement>(null);
 
     const stats = useMemo(() => calculateTradingStats(), []);
     const bubbleData = useMemo(() => prepareBubbleChartData(), []);
 
-    // Calculate bubble size range
-    const maxPL = Math.max(...bubbleData.map((d) => d.z));
-    const minPL = Math.min(...bubbleData.map((d) => d.z));
+    // Update chart dimensions on resize
+    useEffect(() => {
+        const updateDimensions = () => {
+            if (chartContainerRef.current) {
+                const { width, height } = chartContainerRef.current.getBoundingClientRect();
+                setChartDimensions({ width, height });
+            }
+        };
+
+        updateDimensions();
+        window.addEventListener("resize", updateDimensions);
+        return () => window.removeEventListener("resize", updateDimensions);
+    }, []);
 
     return (
-        <div className="flex flex-col h-full w-full border-l border-border/40 bg-background/50">
+        <div className="flex flex-col h-full w-full border-l border-border/40 bg-background/50 relative">
             {/* Header */}
             <div className="px-4 py-3 border-b border-border/40">
                 <div className="flex items-center justify-between mb-2">
@@ -346,66 +849,15 @@ export function ArixPanel() {
                         </div>
 
                         {/* Chart */}
-                        <div className="flex-1 min-h-0">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                                    <XAxis
-                                        type="number"
-                                        dataKey="x"
-                                        name="Ngày giữ"
-                                        unit=" ngày"
-                                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                                        axisLine={{ stroke: "hsl(var(--border))" }}
-                                        tickLine={{ stroke: "hsl(var(--border))" }}
-                                        label={{
-                                            value: "Ngày giữ",
-                                            position: "bottom",
-                                            offset: 15,
-                                            fontSize: 10,
-                                            fill: "hsl(var(--muted-foreground))",
-                                        }}
-                                    />
-                                    <YAxis
-                                        type="number"
-                                        dataKey="y"
-                                        name="Return"
-                                        unit="%"
-                                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                                        axisLine={{ stroke: "hsl(var(--border))" }}
-                                        tickLine={{ stroke: "hsl(var(--border))" }}
-                                        label={{
-                                            value: "Return %",
-                                            angle: -90,
-                                            position: "insideLeft",
-                                            offset: 10,
-                                            fontSize: 10,
-                                            fill: "hsl(var(--muted-foreground))",
-                                        }}
-                                    />
-                                    <ZAxis
-                                        type="number"
-                                        dataKey="z"
-                                        range={[50, 400]}
-                                        domain={[minPL, maxPL]}
-                                    />
-                                    <ReferenceLine
-                                        y={0}
-                                        stroke="hsl(var(--border))"
-                                        strokeDasharray="3 3"
-                                    />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Scatter data={bubbleData} fillOpacity={0.7}>
-                                        {bubbleData.map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={entry.isProfit ? "#22c55e" : "#ef4444"}
-                                                stroke={entry.isProfit ? "#16a34a" : "#dc2626"}
-                                                strokeWidth={1}
-                                            />
-                                        ))}
-                                    </Scatter>
-                                </ScatterChart>
-                            </ResponsiveContainer>
+                        <div ref={chartContainerRef} className="flex-1 min-h-0">
+                            <DraggableBubbleChart
+                                data={bubbleData}
+                                width={chartDimensions.width}
+                                height={chartDimensions.height}
+                                onBubbleClick={() => {}}
+                                hoveredIndex={hoveredIndex}
+                                setHoveredIndex={setHoveredIndex}
+                            />
                         </div>
 
                         {/* Best/Worst Trades */}

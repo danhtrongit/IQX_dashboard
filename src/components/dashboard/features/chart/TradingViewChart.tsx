@@ -211,8 +211,6 @@ function TradingViewChartComponent({
                         foregroundColor: theme === 'dark' ? '#3b82f6' : '#2563eb',
                     },
 
-                    // Custom CSS
-                    custom_css_url: '/tradingview-custom.css',
                 };
 
                 // Create widget
