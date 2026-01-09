@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useTheme } from "next-themes";
 import {
     ArrowLeft,
     Building2,
@@ -149,10 +150,11 @@ function StockErrorState({ symbol, onBack }: { symbol?: string; onBack: () => vo
 // Tab content renderer
 function TabContent({ activeTab, symbol }: { activeTab: MainTabType; symbol: string }) {
     const upperSymbol = symbol.toUpperCase();
+    const { resolvedTheme } = useTheme();
 
     switch (activeTab) {
         case 'chart':
-            return <TradingViewChart symbol={upperSymbol} />;
+            return <TradingViewChart key={`chart-${resolvedTheme}`} symbol={upperSymbol} />;
         case 'overview':
             return <StockOverviewTab symbol={upperSymbol} />;
         case 'financials':

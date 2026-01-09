@@ -3,8 +3,9 @@
  * Integrates TradingView Advanced Charts with Vietnam Stock Market data
  */
 
-import { useEffect, useRef, memo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { datafeed, type ResolutionString } from '@/lib/tradingview/datafeed';
 
 // ==================== Types ====================
@@ -106,7 +107,7 @@ function loadTradingViewScript(): Promise<void> {
 function TradingViewChartComponent({
     symbol: propSymbol,
     interval = DEFAULT_INTERVAL,
-    theme = 'dark',
+    theme: propTheme,
     autosize = true,
     className = '',
     onChartReady,
@@ -118,6 +119,19 @@ function TradingViewChartComponent({
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Use next-themes hook to get current theme
+    const { resolvedTheme, theme: rawTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
+    // Wait for client-side mount to get correct theme
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Use mounted theme or fallback to dark during SSR
+    const currentTheme = mounted ? (resolvedTheme || rawTheme) : 'dark';
+    const theme = (propTheme || (currentTheme === 'dark' ? 'dark' : 'light')) as 'light' | 'dark';
 
     // Use prop symbol or route symbol, default to VNINDEX
     const currentSymbol = propSymbol || routeSymbol?.toUpperCase() || 'VNINDEX';
@@ -159,6 +173,26 @@ function TradingViewChartComponent({
                     throw new Error('TradingView widget not available');
                 }
 
+                // Define custom themes for light and dark mode
+                const customThemes = {
+                    light: {
+                        'paneProperties.background': '#ffffff',
+                        'paneProperties.backgroundType': 'solid',
+                        'paneProperties.vertGridProperties.color': '#f0f0f0',
+                        'paneProperties.horzGridProperties.color': '#f0f0f0',
+                        'scalesProperties.textColor': '#374151',
+                        'scalesProperties.lineColor': '#e5e7eb',
+                    },
+                    dark: {
+                        'paneProperties.background': '#0a0a0a',
+                        'paneProperties.backgroundType': 'solid',
+                        'paneProperties.vertGridProperties.color': '#1a1a1a',
+                        'paneProperties.horzGridProperties.color': '#1a1a1a',
+                        'scalesProperties.textColor': '#9ca3af',
+                        'scalesProperties.lineColor': '#1a1a1a',
+                    },
+                };
+
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const widgetOptions: any = {
                     symbol: currentSymbol,
@@ -176,6 +210,9 @@ function TradingViewChartComponent({
                     // UI Configuration
                     disabled_features: DISABLED_FEATURES,
                     enabled_features: ENABLED_FEATURES,
+
+                    // Custom themes for dynamic switching
+                    custom_themes: customThemes,
 
                     // Chart styling
                     overrides: {
@@ -256,7 +293,7 @@ function TradingViewChartComponent({
                 widgetRef.current = null;
             }
         };
-    }, [currentSymbol, interval, theme, autosize, onChartReady]);
+    }, [currentSymbol, interval, autosize, onChartReady]);
 
     // Update symbol when it changes (without recreating widget)
     useEffect(() => {
@@ -270,6 +307,35 @@ function TradingViewChartComponent({
             }
         }
     }, [currentSymbol, interval]);
+
+    // Update theme dynamically when it changes (without recreating widget)
+    useEffect(() => {
+        if (widgetRef.current && mounted) {
+            try {
+                // Method 1: Try using changeTheme (built-in method)
+                if (typeof widgetRef.current.changeTheme === 'function') {
+                    widgetRef.current.changeTheme(theme);
+                    console.log(`[TradingView] Theme changed to ${theme} using changeTheme()`);
+                } else {
+                    // Method 2: Apply overrides directly to active chart
+                    const chart = widgetRef.current.activeChart();
+                    if (chart && typeof chart.applyOverrides === 'function') {
+                        chart.applyOverrides({
+                            'paneProperties.background': theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                            'paneProperties.backgroundType': 'solid',
+                            'paneProperties.vertGridProperties.color': theme === 'dark' ? '#1a1a1a' : '#f0f0f0',
+                            'paneProperties.horzGridProperties.color': theme === 'dark' ? '#1a1a1a' : '#f0f0f0',
+                            'scalesProperties.textColor': theme === 'dark' ? '#9ca3af' : '#374151',
+                            'scalesProperties.lineColor': theme === 'dark' ? '#1a1a1a' : '#e5e7eb',
+                        });
+                        console.log(`[TradingView] Theme changed to ${theme} using applyOverrides()`);
+                    }
+                }
+            } catch (e) {
+                console.warn('[TradingView] Error switching theme:', e);
+            }
+        }
+    }, [theme, mounted]);
 
     if (error) {
         return (
@@ -300,5 +366,5 @@ function TradingViewChartComponent({
     );
 }
 
-// Memoize to prevent unnecessary re-renders
-export const TradingViewChart = memo(TradingViewChartComponent);
+// Export without memo to allow theme context changes to trigger re-renders
+export const TradingViewChart = TradingViewChartComponent;

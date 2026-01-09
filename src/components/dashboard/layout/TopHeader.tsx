@@ -5,6 +5,7 @@ import { LoginModal, UserMenu } from "@/components/dashboard/features/auth";
 import { StockSearch } from "@/components/dashboard/features/search";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeAwareLogo } from "@/components/ui/theme-aware-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function TopHeader() {
     const { isAuthenticated, isLoading } = useAuth();
@@ -56,6 +57,8 @@ export function TopHeader() {
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                     <Settings className="h-4 w-4" />
                 </Button>
+
+                <ThemeToggle />
 
                 <div className="w-px h-4 bg-border mx-1" />
 

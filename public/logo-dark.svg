@@ -2,9 +2,9 @@
   <!-- Hexagon Cluster Icon - Enhanced for dark backgrounds -->
   <g id="hexagon-cluster">
     <defs>
-      <radialGradient id="goldGradientDark" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" style="stop-color:#FFF4D6;stop-opacity:1" />
-        <stop offset="100%" style="stop-color:#F4D03F;stop-opacity:1" />
+      <radialGradient id="techBlueGradientDark" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" style="stop-color:#60A5FA;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
       </radialGradient>
 
       <!-- Hexagon path definition -->
@@ -20,23 +20,23 @@
       </filter>
     </defs>
 
-    <!-- Center hexagon (brighter gold with glow) -->
-    <use href="#hexagonDark" x="8" y="11" fill="url(#goldGradientDark)" filter="url(#glow)" />
+    <!-- Center hexagon (brighter blue with glow) -->
+    <use href="#hexagonDark" x="8" y="11" fill="url(#techBlueGradientDark)" filter="url(#glow)" />
 
     <!-- Top-right hexagon (outline with glow) -->
-    <use href="#hexagonDark" x="26" y="3" fill="#F4D03F30" stroke="#F4D03F" stroke-width="1.5" />
+    <use href="#hexagonDark" x="26" y="3" fill="#3B82F630" stroke="#60A5FA" stroke-width="1.5" />
 
     <!-- Bottom-left hexagon (outline with glow) -->
-    <use href="#hexagonDark" x="8" y="23" fill="#F4D03F30" stroke="#F4D03F" stroke-width="1.5" />
+    <use href="#hexagonDark" x="8" y="23" fill="#3B82F630" stroke="#60A5FA" stroke-width="1.5" />
 
     <!-- Connection lines (brighter for visibility) -->
-    <line x1="20" y1="18" x2="32" y2="13" stroke="#F4D03F" stroke-width="1" opacity="0.7" />
-    <line x1="20" y1="32" x2="20" y2="38" stroke="#F4D03F" stroke-width="1" opacity="0.7" />
+    <line x1="20" y1="18" x2="32" y2="13" stroke="#60A5FA" stroke-width="1" opacity="0.7" />
+    <line x1="20" y1="32" x2="20" y2="38" stroke="#60A5FA" stroke-width="1" opacity="0.7" />
   </g>
 
   <!-- IQX Text - Brighter for dark mode -->
   <g id="wordmark">
-    <text x="60" y="35" font-family="'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700" fill="#F4D03F" letter-spacing="0.5">IQX</text>
+    <text x="60" y="35" font-family="'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="700" fill="#60A5FA" letter-spacing="0.5">IQX</text>
     <text x="60" y="45" font-family="'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="500" fill="#9CA3AF" letter-spacing="2">INTELLIGENT TRADING</text>
   </g>
 </svg>

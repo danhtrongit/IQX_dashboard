@@ -7,6 +7,7 @@ import { PortfolioPanel } from "../features/portfolio/PortfolioPanel";
 import { NewsPanel } from "../features/news/NewsPanel";
 import { AIChatPanel } from "../features/chat/AIChatPanel";
 import { ArixPanel } from "../features/arix/ArixPanel";
+import { RankingPanel } from "../features/ranking/RankingPanel";
 import { cn } from "@/lib/utils";
 
 interface WorkspaceLayoutProps {
@@ -27,6 +28,9 @@ export function WorkspaceLayout({
     initialPanel = 'trade',
 }: WorkspaceLayoutProps) {
     const [activePanel, setActivePanel] = useState<RightPanelView>(initialPanel);
+    const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+    const togglePanel = () => setIsPanelCollapsed(!isPanelCollapsed);
 
     const renderRightPanel = () => {
         switch (activePanel) {
@@ -38,6 +42,8 @@ export function WorkspaceLayout({
                 return <AIChatPanel />;
             case 'arix':
                 return <ArixPanel />;
+            case 'ranking':
+                return <RankingPanel />;
             case 'trade':
             default:
                 return <QuickTrade />;
@@ -45,7 +51,7 @@ export function WorkspaceLayout({
     };
 
     return (
-        <div className="h-full grid grid-cols-[1fr_340px_auto] overflow-hidden">
+        <div className="h-full grid grid-cols-[1fr_auto_auto] overflow-hidden">
             {/* Main content area */}
             <div className={cn(
                 "min-w-0 h-full flex flex-col overflow-hidden border-r border-border/40",
@@ -65,7 +71,10 @@ export function WorkspaceLayout({
             </div>
 
             {/* Right Panel */}
-            <div className="min-w-0 h-full overflow-hidden">
+            <div className={cn(
+                "min-w-0 h-full overflow-hidden transition-all duration-300",
+                isPanelCollapsed ? "w-0 opacity-0" : "w-85 opacity-100"
+            )}>
                 {renderRightPanel()}
             </div>
 
@@ -73,6 +82,8 @@ export function WorkspaceLayout({
             <RightQuickNav
                 activePanel={activePanel}
                 onPanelChange={setActivePanel}
+                isPanelCollapsed={isPanelCollapsed}
+                onTogglePanel={togglePanel}
             />
         </div>
     );

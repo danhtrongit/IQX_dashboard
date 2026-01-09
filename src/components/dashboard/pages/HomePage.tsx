@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LineChart, BarChart2 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { WorkspaceLayout } from "../layout/WorkspaceLayout";
 import { TradingViewChart } from "../features/chart/TradingViewChart";
 import { AnalysisPanel } from "../features/analysis2/AnalysisPanel";
@@ -51,6 +52,7 @@ function HomeHeader({
 export function HomePage() {
     const [activeTab, setActiveTab] = useState<HomeTabType>('chart');
     const symbol = 'VNINDEX';
+    const { resolvedTheme } = useTheme();
 
     return (
         <WorkspaceLayout
@@ -62,7 +64,7 @@ export function HomePage() {
             }
         >
             {activeTab === 'chart'
-                ? <TradingViewChart symbol={symbol} />
+                ? <TradingViewChart key={`chart-${resolvedTheme}`} symbol={symbol} />
                 : <AnalysisPanel />
             }
         </WorkspaceLayout>

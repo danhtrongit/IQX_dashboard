@@ -209,7 +209,7 @@ export function NewsPanel() {
             </div>
 
             {/* News List */}
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 h-0">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />

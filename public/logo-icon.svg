@@ -1,10 +1,10 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <!-- Enhanced gradient for larger icon -->
-    <radialGradient id="iconGoldGradient" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#FFF4D6;stop-opacity:1" />
-      <stop offset="40%" style="stop-color:#F4E5B8;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#D4AF37;stop-opacity:1" />
+    <radialGradient id="iconTechBlueGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#93C5FD;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#60A5FA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
     </radialGradient>
 
     <!-- Hexagon path scaled for 512x512 canvas -->
@@ -22,22 +22,22 @@
 
   <!-- Center all hexagons in 512x512 canvas with 64px padding -->
   <g transform="translate(176, 164)">
-    <!-- Center hexagon (solid gold with gradient and glow) -->
-    <use href="#hexIcon" x="0" y="0" fill="url(#iconGoldGradient)" filter="url(#iconGlow)" />
+    <!-- Center hexagon (solid blue with gradient and glow) -->
+    <use href="#hexIcon" x="0" y="0" fill="url(#iconTechBlueGradient)" filter="url(#iconGlow)" />
 
     <!-- Top-right hexagon -->
-    <use href="#hexIcon" x="120" y="-70" fill="#F4E5B840" stroke="#D4AF37" stroke-width="8" />
+    <use href="#hexIcon" x="120" y="-70" fill="#60A5FA40" stroke="#2563EB" stroke-width="8" />
 
     <!-- Bottom-left hexagon -->
-    <use href="#hexIcon" x="-120" y="70" fill="#F4E5B840" stroke="#D4AF37" stroke-width="8" />
+    <use href="#hexIcon" x="-120" y="70" fill="#60A5FA40" stroke="#2563EB" stroke-width="8" />
 
     <!-- Connection lines for network effect -->
-    <line x1="80" y1="92" x2="200" y2="22" stroke="#D4AF37" stroke-width="6" opacity="0.6" stroke-linecap="round" />
-    <line x1="80" y1="92" x2="-40" y2="162" stroke="#D4AF37" stroke-width="6" opacity="0.6" stroke-linecap="round" />
+    <line x1="80" y1="92" x2="200" y2="22" stroke="#2563EB" stroke-width="6" opacity="0.6" stroke-linecap="round" />
+    <line x1="80" y1="92" x2="-40" y2="162" stroke="#2563EB" stroke-width="6" opacity="0.6" stroke-linecap="round" />
 
     <!-- Additional connecting nodes (small circles) -->
-    <circle cx="80" cy="92" r="8" fill="#F4D03F" opacity="0.8" />
-    <circle cx="200" cy="22" r="8" fill="#F4D03F" opacity="0.8" />
-    <circle cx="-40" cy="162" r="8" fill="#F4D03F" opacity="0.8" />
+    <circle cx="80" cy="92" r="8" fill="#60A5FA" opacity="0.8" />
+    <circle cx="200" cy="22" r="8" fill="#60A5FA" opacity="0.8" />
+    <circle cx="-40" cy="162" r="8" fill="#60A5FA" opacity="0.8" />
   </g>
 </svg>

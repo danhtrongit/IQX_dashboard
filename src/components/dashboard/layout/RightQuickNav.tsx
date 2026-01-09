@@ -1,4 +1,4 @@
-import { ShoppingCart, Newspaper, ChevronLeft, ChevronRight, Briefcase, Bot, BarChart3 } from "lucide-react";
+import { ShoppingCart, Newspaper, ChevronLeft, ChevronRight, Briefcase, Bot, BarChart3, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -6,15 +6,16 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 // Types for right panel navigation
-export type RightPanelView = 'trade' | 'portfolio' | 'news' | 'ai' | 'arix';
+export type RightPanelView = 'trade' | 'portfolio' | 'news' | 'ai' | 'arix' | 'ranking';
 
 interface RightQuickNavProps {
     activePanel?: RightPanelView;
     onPanelChange?: (panel: RightPanelView) => void;
+    isPanelCollapsed?: boolean;
+    onTogglePanel?: () => void;
 }
 
 const NavItem = ({
@@ -58,21 +59,24 @@ const NavItem = ({
 export function RightQuickNav({
     activePanel = 'trade',
     onPanelChange,
+    isPanelCollapsed = false,
+    onTogglePanel,
 }: RightQuickNavProps) {
-    const [isExpanded, setIsExpanded] = useState(true);
+    // isExpanded controls text visibility under icons (always true for better UX)
+    const isExpanded = true;
 
     return (
         <div className={cn(
             "flex flex-col items-center py-2 border-l border-border/40 bg-background/50 backdrop-blur-sm gap-2 transition-all duration-300 relative z-30",
-            isExpanded ? "w-16" : "w-12"
+            "w-16"
         )}>
             <Button
                 variant="ghost"
-                size="icon"
-                className="h-6 w-6 mb-2 text-muted-foreground"
-                onClick={() => setIsExpanded(!isExpanded)}
+                size="sm"
+                className="h-8 w-12 mb-2 text-muted-foreground hover:bg-accent"
+                onClick={onTogglePanel}
             >
-                {isExpanded ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                {isPanelCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             </Button>
 
             <div className="flex flex-col gap-2 w-full px-1">
@@ -119,6 +123,15 @@ export function RightQuickNav({
                     isExpanded={isExpanded}
                     isActive={activePanel === 'arix'}
                     onClick={() => onPanelChange?.('arix')}
+                />
+
+                {/* Biến động - Ranking Panel */}
+                <NavItem
+                    icon={TrendingUp}
+                    label="Biến động"
+                    isExpanded={isExpanded}
+                    isActive={activePanel === 'ranking'}
+                    onClick={() => onPanelChange?.('ranking')}
                 />
             </div>
         </div>
