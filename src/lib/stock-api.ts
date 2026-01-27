@@ -520,6 +520,45 @@ export interface TechnicalAnalysisResponse {
 
 export type TechnicalTimeframe = 'ONE_HOUR' | 'ONE_DAY' | 'ONE_WEEK';
 
+// ==================== AI Insight API Types ====================
+
+/**
+ * Trading recommendation from AI analysis
+ */
+export interface TradingRecommendation {
+    description: string;
+    buy_price: string | null;
+    buy_conditions: string[];
+    stop_loss_price: string | null;
+    stop_loss_conditions: string[];
+    take_profit_price: string | null;
+    take_profit_conditions: string[];
+}
+
+/**
+ * AI Insight response
+ */
+export interface AIInsightResponse {
+    symbol: string;
+    period: number;
+    current_price: number | null;
+    current_volume: number | null;
+    recommendation: TradingRecommendation | null;
+    raw_analysis: string | null;
+    candlestick_pattern: string | null;
+    error: string | null;
+}
+
+/**
+ * Candlestick pattern response
+ */
+export interface CandlestickPatternResponse {
+    symbol: string;
+    pattern: string | null;
+    current_price: number | null;
+    error?: string;
+}
+
 // ==================== Technical Analysis API ====================
 
 export const TechnicalAPI = {
@@ -538,4 +577,33 @@ export const TechnicalAPI = {
     },
 };
 
-export default { CompanyAPI, FinancialsAPI, InsightAPI, TechnicalAPI };
+// ==================== AI Insight API ====================
+
+export const AIInsightAPI = {
+    /**
+     * Get AI-powered technical analysis insight
+     * GET /ai-insight/{symbol}
+     * Uses longer timeout for AI processing
+     */
+    getInsight: async (
+        symbol: string,
+        period: number = 20
+    ): Promise<AIInsightResponse> => {
+        const response = await api.get<AIInsightResponse>(`/ai-insight/${symbol}`, {
+            params: { period },
+            timeout: 120000, // 2 minutes timeout for AI processing
+        });
+        return response.data;
+    },
+
+    /**
+     * Get candlestick pattern only
+     * GET /ai-insight/{symbol}/pattern
+     */
+    getCandlestickPattern: async (symbol: string): Promise<CandlestickPatternResponse> => {
+        const response = await api.get<CandlestickPatternResponse>(`/ai-insight/${symbol}/pattern`);
+        return response.data;
+    },
+};
+
+export default { CompanyAPI, FinancialsAPI, InsightAPI, TechnicalAPI, AIInsightAPI };

@@ -12,7 +12,8 @@ import {
     Users,
     BarChart3,
     FileText,
-    Activity
+    Activity,
+    Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,12 +26,13 @@ import {
     TradingInsightTab,
     EventsNewsTab,
     AnalysisReportsTab,
-    TechnicalAnalysisTab
+    TechnicalAnalysisTab,
+    AIInsightTab
 } from "../features/stock-info";
 import { cn } from "@/lib/utils";
 
 // Tab types
-type MainTabType = 'chart' | 'overview' | 'financials' | 'insight' | 'events' | 'analysis' | 'technical';
+type MainTabType = 'chart' | 'overview' | 'financials' | 'insight' | 'events' | 'analysis' | 'technical' | 'ai-insight';
 
 // Tab Configuration: ID -> Label & Icon
 const TAB_CONFIG: { id: MainTabType; label: string; icon: React.ReactNode }[] = [
@@ -41,6 +43,7 @@ const TAB_CONFIG: { id: MainTabType; label: string; icon: React.ReactNode }[] = 
     { id: 'events', label: 'Sự kiện', icon: <Calendar className="h-3.5 w-3.5" /> },
     { id: 'analysis', label: 'Phân tích', icon: <FileText className="h-3.5 w-3.5" /> },
     { id: 'technical', label: 'PTKT', icon: <Activity className="h-3.5 w-3.5" /> },
+    { id: 'ai-insight', label: 'AI Insight', icon: <Brain className="h-3.5 w-3.5" /> },
 ];
 
 // URL Mapping: Internal ID <-> URL Slug
@@ -52,6 +55,7 @@ const TAB_SLUGS: Record<MainTabType, string> = {
     events: 'su-kien',
     analysis: 'bao-cao',
     technical: 'ky-thuat',
+    'ai-insight': 'ai-insight',
 };
 
 // Header component for stock detail page
@@ -167,6 +171,8 @@ function TabContent({ activeTab, symbol }: { activeTab: MainTabType; symbol: str
             return <AnalysisReportsTab symbol={upperSymbol} />;
         case 'technical':
             return <TechnicalAnalysisTab symbol={upperSymbol} />;
+        case 'ai-insight':
+            return <AIInsightTab symbol={upperSymbol} />;
         default:
             return null;
     }

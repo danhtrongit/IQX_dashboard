@@ -4,3 +4,4 @@ export { TradingInsightTab } from './TradingInsightTab';
 export { EventsNewsTab } from './EventsNewsTab';
 export { AnalysisReportsTab } from './AnalysisReportsTab';
 export { TechnicalAnalysisTab } from './TechnicalAnalysisTab';
+export { AIInsightTab } from './AIInsightTab';
