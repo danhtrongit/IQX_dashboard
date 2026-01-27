@@ -154,7 +154,8 @@ function TradingViewChartComponent({
     };
 
     useEffect(() => {
-        if (!containerRef.current) return;
+        // Wait for mount to get correct theme from next-themes
+        if (!mounted || !containerRef.current) return;
 
         let isMounted = true;
 
@@ -173,26 +174,6 @@ function TradingViewChartComponent({
                     throw new Error('TradingView widget not available');
                 }
 
-                // Define custom themes for light and dark mode
-                const customThemes = {
-                    light: {
-                        'paneProperties.background': '#ffffff',
-                        'paneProperties.backgroundType': 'solid',
-                        'paneProperties.vertGridProperties.color': '#f0f0f0',
-                        'paneProperties.horzGridProperties.color': '#f0f0f0',
-                        'scalesProperties.textColor': '#374151',
-                        'scalesProperties.lineColor': '#e5e7eb',
-                    },
-                    dark: {
-                        'paneProperties.background': '#0a0a0a',
-                        'paneProperties.backgroundType': 'solid',
-                        'paneProperties.vertGridProperties.color': '#1a1a1a',
-                        'paneProperties.horzGridProperties.color': '#1a1a1a',
-                        'scalesProperties.textColor': '#9ca3af',
-                        'scalesProperties.lineColor': '#1a1a1a',
-                    },
-                };
-
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const widgetOptions: any = {
                     symbol: currentSymbol,
@@ -210,9 +191,6 @@ function TradingViewChartComponent({
                     // UI Configuration
                     disabled_features: DISABLED_FEATURES,
                     enabled_features: ENABLED_FEATURES,
-
-                    // Custom themes for dynamic switching
-                    custom_themes: customThemes,
 
                     // Chart styling
                     overrides: {
@@ -293,7 +271,7 @@ function TradingViewChartComponent({
                 widgetRef.current = null;
             }
         };
-    }, [currentSymbol, interval, autosize, onChartReady]);
+    }, [mounted, currentSymbol, interval, autosize, theme, onChartReady]);
 
     // Update symbol when it changes (without recreating widget)
     useEffect(() => {
@@ -349,7 +327,13 @@ function TradingViewChartComponent({
     }
 
     return (
-        <div className={`w-full h-full relative ${className}`} style={{ minHeight: '400px' }}>
+        <div
+            className={`w-full h-full relative ${className}`}
+            style={{
+                minHeight: '400px',
+                backgroundColor: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            }}
+        >
             {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
                     <div className="flex flex-col items-center gap-2">
@@ -361,6 +345,7 @@ function TradingViewChartComponent({
             <div
                 ref={containerRef}
                 className="w-full h-full"
+                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#ffffff' }}
             />
         </div>
     );

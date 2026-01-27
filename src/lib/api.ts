@@ -116,6 +116,15 @@ api.interceptors.response.use(
 // ==================== API Types (from OpenAPI spec) ====================
 
 /**
+ * POST /auth/register request body
+ */
+export interface RegisterRequest {
+    email: string;
+    password: string;
+    fullname?: string;
+}
+
+/**
  * POST /auth/login request body
  */
 export interface LoginRequest {
@@ -181,6 +190,19 @@ export interface MessageResponse {
 
 export const AuthAPI = {
     /**
+     * Register new user
+     * POST /auth/register
+     */
+    register: async (email: string, password: string, fullname?: string): Promise<AuthResponse> => {
+        const response = await api.post<AuthResponse>('/auth/register', {
+            email,
+            password,
+            fullname,
+        } as RegisterRequest);
+        return response.data;
+    },
+
+    /**
      * Login user
      * POST /auth/login
      */
@@ -241,6 +263,9 @@ export const getErrorMessage = (error: unknown): string => {
         }
         if (response?.status === 403) {
             return 'Tài khoản của bạn đã bị khóa';
+        }
+        if (response?.status === 409) {
+            return 'Email này đã được sử dụng';
         }
         if (response?.status === 422) {
             // Validation error from FastAPI

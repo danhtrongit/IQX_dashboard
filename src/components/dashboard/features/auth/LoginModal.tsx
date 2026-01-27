@@ -26,7 +26,7 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useAuth } from "@/lib/auth-context";
 
 // Validation schema - matches API LoginRequest
@@ -48,9 +48,10 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 interface LoginModalProps {
     trigger?: React.ReactNode;
     defaultOpen?: boolean;
+    onRegisterClick?: () => void;
 }
 
-export function LoginModal({ trigger, defaultOpen = false }: LoginModalProps) {
+export function LoginModal({ trigger, defaultOpen = false, onRegisterClick }: LoginModalProps) {
     const [open, setOpen] = useState(defaultOpen);
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,10 +67,23 @@ export function LoginModal({ trigger, defaultOpen = false }: LoginModalProps) {
     });
 
     const onSubmit = async (data: LoginFormValues) => {
+        // Prevent double submission
+        if (isSubmitting) return;
+
         setIsSubmitting(true);
+
+        // Timeout wrapper to ensure loading state is reset
+        const timeoutId = setTimeout(() => {
+            setIsSubmitting(false);
+            toast.error("Yêu cầu quá thời gian chờ", {
+                description: "Vui lòng kiểm tra kết nối và thử lại",
+            });
+        }, 15000); // 15s timeout
 
         try {
             await login(data.email, data.password);
+
+            clearTimeout(timeoutId);
 
             toast.success("Đăng nhập thành công!", {
                 description: "Chào mừng bạn trở lại với IQX",
@@ -78,11 +92,14 @@ export function LoginModal({ trigger, defaultOpen = false }: LoginModalProps) {
             setOpen(false);
             form.reset();
         } catch (error) {
+            clearTimeout(timeoutId);
+
             const message = error instanceof Error ? error.message : "Đã có lỗi xảy ra";
             toast.error("Đăng nhập thất bại", {
                 description: message,
             });
         } finally {
+            clearTimeout(timeoutId);
             setIsSubmitting(false);
         }
     };
@@ -267,7 +284,10 @@ export function LoginModal({ trigger, defaultOpen = false }: LoginModalProps) {
                             <Button
                                 variant="link"
                                 className="h-auto p-0 text-primary font-semibold hover:text-primary/80"
-                                onClick={() => toast.info("Tính năng đang phát triển")}
+                                onClick={() => {
+                                    setOpen(false);
+                                    onRegisterClick?.();
+                                }}
                             >
                                 Đăng ký ngay
                             </Button>

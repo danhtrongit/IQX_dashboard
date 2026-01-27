@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import { Search, Star, Loader2, X, TrendingUp, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
     Tooltip,
     TooltipContent,
@@ -27,7 +27,7 @@ import {
 } from "@/lib/trading-api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { SymbolsAPI, type SymbolResponse } from "@/lib/symbols-api";
-import { TokenService } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 // ==================== Debounce Hook ====================
 function useDebounce<T>(value: T, delay: number): T {
@@ -341,7 +341,7 @@ interface QuickTradeProps {
 
 export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
     const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
-    
+
     // Symbol state - prioritize prop > route > default
     const [selectedSymbol, setSelectedSymbol] = useState("ACB");
     const [organName, setOrganName] = useState<string | null>("Ngân hàng TMCP Á Châu");
@@ -372,9 +372,10 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
     // API data state for wallet/positions  
     const [wallet, setWallet] = useState<WalletResponse | null>(null);
     const [positions, setPositions] = useState<PositionResponse[]>([]);
+    const [isActivating, setIsActivating] = useState(false);
 
-    // Check if user is authenticated
-    const isAuthenticated = TokenService.hasTokens();
+    // Check if user is authenticated using reactive hook
+    const { isAuthenticated } = useAuth();
 
     // Set default price when priceInfo changes
     const prevPriceInfoRef = useRef<PriceInfo | null>(null);
@@ -528,12 +529,70 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
             await fetchAccountData();
         } catch (error: any) {
             console.error("Order failed:", error);
-            const errMsg = error.response?.data?.detail || "Đặt lệnh thất bại";
-            toast.error(errMsg);
+
+            // Extract detailed error message
+            let errTitle = "Đặt lệnh thất bại";
+            let errDescription = "";
+
+            if (error.response?.data?.detail) {
+                const detail = error.response.data.detail;
+
+                // Handle validation errors (array format from FastAPI)
+                if (Array.isArray(detail)) {
+                    errDescription = detail.map((d: { msg: string }) => d.msg).join(", ");
+                } else if (typeof detail === "string") {
+                    // Check for specific error types
+                    if (detail.includes("Insufficient balance")) {
+                        errTitle = "Không đủ số dư";
+                        errDescription = detail;
+                    } else if (detail.includes("Insufficient position")) {
+                        errTitle = "Không đủ cổ phiếu";
+                        errDescription = detail;
+                    } else if (detail.includes("Market price not found")) {
+                        errTitle = "Không có giá thị trường";
+                        errDescription = `Không lấy được giá của ${selectedSymbol}`;
+                    } else {
+                        errDescription = detail;
+                    }
+                }
+            } else if (error.message) {
+                errDescription = error.message;
+            }
+
+            toast.error(errTitle, {
+                description: errDescription || "Vui lòng thử lại sau",
+                duration: 5000,
+            });
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    // Handle account activation (grant initial cash)
+    const handleActivateAccount = async () => {
+        setIsActivating(true);
+        try {
+            const response = await TradingAPI.grantInitialCash();
+            if (response.granted) {
+                toast.success("Kích hoạt thành công!", {
+                    description: response.message,
+                });
+                // Refresh wallet data
+                await fetchAccountData();
+            } else {
+                toast.info(response.message);
+            }
+        } catch (error: any) {
+            console.error("Activation failed:", error);
+            const errMsg = error.response?.data?.detail || "Kích hoạt thất bại";
+            toast.error(errMsg);
+        } finally {
+            setIsActivating(false);
+        }
+    };
+
+    // Check if account needs activation (no initial cash granted)
+    const needsActivation = isAuthenticated && wallet && !wallet.first_grant_at;
 
     // Get price color
     const currentPriceColor = priceInfo
@@ -822,7 +881,7 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
                         <span className="text-[10px] text-muted-foreground">Khả dụng</span>
                         <span className="text-[11px] font-mono text-primary font-semibold">
                             {isAuthenticated && wallet
-                                ? formatCurrency(wallet.available, { compact: true })
+                                ? formatCurrency(wallet.available)
                                 : "—"}
                         </span>
                     </div>
@@ -854,6 +913,26 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
                         <span className="text-xs text-muted-foreground">
                             Đăng nhập để giao dịch
                         </span>
+                    </div>
+                ) : needsActivation ? (
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                            <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                Kích hoạt tài khoản để nhận <span className="font-bold">1 tỷ VND</span> tiền ảo giao dịch
+                            </p>
+                        </div>
+                        <Button
+                            onClick={handleActivateAccount}
+                            disabled={isActivating}
+                            className="w-full h-9 font-bold text-sm bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                        >
+                            {isActivating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                "Kích hoạt ngay"
+                            )}
+                        </Button>
                     </div>
                 ) : (
                     <Button

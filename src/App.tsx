@@ -6,6 +6,7 @@ import { DashboardLayout } from "./components/dashboard/layout/DashboardLayout";
 const HomePage = lazy(() => import("./components/dashboard/pages/HomePage").then(module => ({ default: module.HomePage })));
 const StockDetailPage = lazy(() => import("./components/dashboard/pages/StockDetailPage").then(module => ({ default: module.StockDetailPage })));
 const ComingSoonPage = lazy(() => import("./components/dashboard/pages/ComingSoonPage").then(module => ({ default: module.ComingSoonPage })));
+const SectorPage = lazy(() => import("./components/dashboard/features/sector/SectorPage").then(module => ({ default: module.SectorPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -22,6 +23,7 @@ function App() {
                     <Route element={<DashboardLayout />}>
                         <Route index element={<HomePage />} />
                         <Route path="/co-phieu/:symbol" element={<StockDetailPage />} />
+                        <Route path="/nganh" element={<SectorPage />} />
                         <Route path="/bang-gia" element={<ComingSoonPage />} />
                         <Route path="/loc-co-phieu" element={<ComingSoonPage />} />
                         <Route path="/san-bot" element={<ComingSoonPage />} />

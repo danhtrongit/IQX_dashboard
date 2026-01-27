@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { RefreshCcw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { RefreshCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -15,8 +15,9 @@ import {
     HoverCardContent,
     HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { MarketAPI, type IndexImpactStock, type ProprietaryStock, type ForeignNetStock, type MarketGroup } from "@/lib/market-api";
 
-// Mock Data Interfaces
+// Unified Stock Data Interface
 interface StockData {
     symbol: string;
     value: number;
@@ -26,37 +27,39 @@ interface StockData {
     exchange?: string;
 }
 
-// 1. Market Leaders Data (Contribution)
-const leadersData: { gainers: StockData[], losers: StockData[] } = {
-    gainers: [
-        { symbol: "PVS", value: 0.53, name: "Dịch vụ Kỹ thuật Dầu khí", price: 38.5, change: 1.2, exchange: "HNX" },
-        { symbol: "PTI", value: 0.23, name: "Bảo hiểm Bưu điện", price: 56.1, change: 2.1, exchange: "HNX" },
-        { symbol: "NTP", value: 0.19, name: "Nhựa Tiền Phong", price: 42.0, change: 0.8, exchange: "HNX" },
-        { symbol: "KSF", value: 0.16, name: "Tập đoàn KSFinance", price: 29.5, change: 0.5, exchange: "HNX" },
-        { symbol: "THD", value: 0.13, name: "Thaiholdings", price: 35.2, change: 0.4, exchange: "HNX" },
-        { symbol: "PGS", value: 0.12, name: "Khí Miền Nam", price: 46.2, change: 0.3, exchange: "HNX" },
-        { symbol: "GMA", value: 0.12, name: "G-Automobile", price: 18.2, change: 0.7, exchange: "HNX" },
-        { symbol: "TIG", value: 0.09, name: "Tập đoàn Thăng Long", price: 11.5, change: 0.2, exchange: "HNX" },
-        { symbol: "PVC", value: 0.07, name: "Hóa chất Dầu khí", price: 14.8, change: 1.1, exchange: "HNX" },
-        { symbol: "MBS", value: 0.07, name: "Chứng khoán MB", price: 24.3, change: 0.9, exchange: "HNX" },
-    ],
-    losers: [
-        { symbol: "KSV", value: -1.73, name: "Vinacomin - Khoáng sản", price: 32.1, change: -5.2, exchange: "UPCOM" },
-        { symbol: "PVI", value: -1.12, name: "PVI Holdings", price: 48.5, change: -2.3, exchange: "HNX" },
-        { symbol: "CEO", value: -0.62, name: "Tập đoàn C.E.O", price: 21.0, change: -1.8, exchange: "HNX" },
-        { symbol: "MBS", value: -0.46, name: "Chứng khoán MB", price: 23.5, change: -1.2, exchange: "HNX" },
-        { symbol: "NVB", value: -0.33, name: "Ngân hàng Quốc Dân", price: 10.8, change: -0.9, exchange: "HNX" },
-        { symbol: "VCS", value: -0.14, name: "Vicostone", price: 65.2, change: -0.5, exchange: "HNX" },
-        { symbol: "IDJ", value: -0.09, name: "Đầu tư IDJ", price: 6.8, change: -0.2, exchange: "HNX" },
-        { symbol: "BTW", value: -0.07, name: "Cấp nước Bến Thành", price: 22.1, change: -0.3, exchange: "UPCOM" },
-        { symbol: "SCG", value: -0.07, name: "Xây dựng SCG", price: 15.4, change: -0.4, exchange: "HNX" },
-        { symbol: "HUT", value: -0.06, name: "Tasco", price: 18.9, change: -0.1, exchange: "HNX" },
-    ]
+// Convert API data to StockData format
+const convertIndexImpact = (stocks: IndexImpactStock[]): StockData[] => {
+    return stocks.map(s => ({
+        symbol: s.symbol,
+        value: s.impact || 0,
+        name: s.organShortName || s.organName || s.symbol,
+        price: s.matchPrice || undefined,
+        change: s.refPrice && s.matchPrice ? ((s.matchPrice - s.refPrice) / s.refPrice) * 100 : undefined,
+        exchange: s.exchange || undefined,
+    }));
 };
 
-// ... Similar data for Prop Trading & Foreign (simplified for brevity)
-const propTradingData = leadersData;
-const foreignTradingData = leadersData;
+const convertProprietary = (stocks: ProprietaryStock[]): StockData[] => {
+    return stocks.map(s => ({
+        symbol: s.ticker,
+        value: (s.totalValue || 0) / 1e9, // Convert to billions
+        name: s.organShortName || s.organName || s.ticker,
+        price: s.matchPrice || undefined,
+        change: s.refPrice && s.matchPrice ? ((s.matchPrice - s.refPrice) / s.refPrice) * 100 : undefined,
+        exchange: s.exchange || undefined,
+    }));
+};
+
+const convertForeign = (stocks: ForeignNetStock[]): StockData[] => {
+    return stocks.map(s => ({
+        symbol: s.symbol,
+        value: (s.net || 0) / 1e9, // Convert to billions
+        name: s.organShortName || s.organName || s.symbol,
+        price: s.matchPrice || undefined,
+        change: s.refPrice && s.matchPrice ? ((s.matchPrice - s.refPrice) / s.refPrice) * 100 : undefined,
+        exchange: s.exchange || undefined,
+    }));
+};
 
 // Reusable Components
 const TimeframeButton = ({ active, label, onClick }: { active: boolean, label: string, onClick: () => void }) => (
@@ -82,11 +85,13 @@ const StockTooltip = ({ stock }: { stock: StockData }) => (
         </div>
         <div className="flex items-center gap-2 pt-1">
             <span className="text-lg font-bold font-mono">
-                {stock.price?.toFixed(2)}
+                {stock.price?.toLocaleString()}
             </span>
-            <span className={cn("text-xs font-bold", (stock.change || 0) >= 0 ? "text-[#00c076]" : "text-[#ff3a3a]")}>
-                {(stock.change || 0) > 0 ? '+' : ''}{stock.change}%
-            </span>
+            {stock.change !== undefined && (
+                <span className={cn("text-xs font-bold", stock.change >= 0 ? "text-[#00c076]" : "text-[#ff3a3a]")}>
+                    {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)}%
+                </span>
+            )}
         </div>
         <div className="flex justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/50">
             <span>Sàn</span>
@@ -98,20 +103,45 @@ const StockTooltip = ({ stock }: { stock: StockData }) => (
 const CSSBarChart = ({
     leftData,
     rightData,
-    type = 'value'
+    type = 'value',
+    isLoading = false
 }: {
     leftData: StockData[],
     rightData: StockData[],
-    type?: 'impact' | 'value'
+    type?: 'impact' | 'value',
+    isLoading?: boolean
 }) => {
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <RefreshCcw className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (leftData.length === 0 && rightData.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                <AlertCircle className="h-5 w-5" />
+                <span className="text-xs">Không có dữ liệu</span>
+            </div>
+        );
+    }
 
     // Find max value to normalize bars
     const maxVal = Math.max(
         ...leftData.map(d => Math.abs(d.value)),
-        ...rightData.map(d => Math.abs(d.value))
+        ...rightData.map(d => Math.abs(d.value)),
+        1 // Prevent division by zero
     );
 
-    const formatValue = (val: number) => type === 'impact' ? val.toFixed(2) : Math.abs(val).toLocaleString();
+    const formatValue = (val: number) => {
+        if (type === 'impact') return val.toFixed(2);
+        // Format billions
+        const absVal = Math.abs(val);
+        if (absVal >= 1000) return `${(absVal / 1000).toFixed(1)}K`;
+        return absVal.toFixed(1);
+    };
 
     return (
         <div className="grid grid-cols-2 gap-4 h-full font-sans">
@@ -119,20 +149,16 @@ const CSSBarChart = ({
             <div className="flex flex-col w-full">
                 <div className="flex justify-between items-center mb-2 px-1">
                     <span className="text-xs font-bold text-foreground w-12 text-left">
-                        {type === 'impact' ? 'Đóng góp' : 'Mua ròng'}
+                        {type === 'impact' ? 'Tăng' : 'Mua ròng'}
                     </span>
-                    {/* Empty header for symbol side */}
                     <span className="w-10"></span>
                 </div>
                 <div className="flex flex-col gap-1.5 w-full">
-                    {leftData.map((item, idx) => (
-                        <div key={idx} className="flex items-center w-full group cursor-pointer hover:bg-accent/5 rounded-sm" onClick={() => toast.info(`Drilldown: ${item.symbol}`)}>
-                            {/* Value - Left Aligned */}
+                    {leftData.slice(0, 10).map((item, idx) => (
+                        <div key={idx} className="flex items-center w-full group cursor-pointer hover:bg-accent/5 rounded-sm" onClick={() => toast.info(`${item.symbol}: ${item.name}`)}>
                             <div className="w-12 text-[10px] text-left font-medium text-[#00c076] shrink-0 font-mono pl-1">
-                                {formatValue(item.value)}
+                                {type === 'value' ? '+' : ''}{formatValue(item.value)}
                             </div>
-
-                            {/* Bar - Grows to Right (justify-end puts it next to Symbol) */}
                             <div className="flex-1 flex justify-end items-center h-full pr-2">
                                 <HoverCard openDelay={0} closeDelay={0}>
                                     <HoverCardTrigger asChild>
@@ -146,8 +172,6 @@ const CSSBarChart = ({
                                     </HoverCardContent>
                                 </HoverCard>
                             </div>
-
-                            {/* Symbol - Right Aligned (Center Spine) */}
                             <div className="w-10 text-[11px] font-bold text-foreground shrink-0 leading-none text-right pr-1">
                                 {item.symbol}
                             </div>
@@ -159,21 +183,17 @@ const CSSBarChart = ({
             {/* RIGHT COLUMN: Negative/Sell */}
             <div className="flex flex-col w-full">
                 <div className="flex justify-between items-center mb-2 px-1">
-                    {/* Empty header for symbol side */}
                     <span className="w-10"></span>
                     <span className="text-xs font-bold text-foreground w-12 text-right">
-                        {type === 'impact' ? 'Đóng góp' : 'Bán ròng'}
+                        {type === 'impact' ? 'Giảm' : 'Bán ròng'}
                     </span>
                 </div>
                 <div className="flex flex-col gap-1.5 w-full">
-                    {rightData.map((item, idx) => (
-                        <div key={idx} className="flex items-center w-full group cursor-pointer hover:bg-accent/5 rounded-sm" onClick={() => toast.info(`Drilldown: ${item.symbol}`)}>
-                            {/* Symbol - Left Aligned (Center Spine) */}
+                    {rightData.slice(0, 10).map((item, idx) => (
+                        <div key={idx} className="flex items-center w-full group cursor-pointer hover:bg-accent/5 rounded-sm" onClick={() => toast.info(`${item.symbol}: ${item.name}`)}>
                             <div className="w-10 text-[11px] font-bold text-foreground shrink-0 leading-none text-left pl-1">
                                 {item.symbol}
                             </div>
-
-                            {/* Bar - Grows from Left (justify-start puts it next to Symbol) */}
                             <div className="flex-1 flex justify-start items-center h-full pl-2">
                                 <HoverCard openDelay={0} closeDelay={0}>
                                     <HoverCardTrigger asChild>
@@ -187,8 +207,6 @@ const CSSBarChart = ({
                                     </HoverCardContent>
                                 </HoverCard>
                             </div>
-
-                            {/* Value - Right Aligned */}
                             <div className="w-12 text-[10px] text-right font-medium text-[#ff3a3a] shrink-0 font-mono pr-1">
                                 {formatValue(item.value)}
                             </div>
@@ -201,16 +219,75 @@ const CSSBarChart = ({
 };
 
 export function MarketLeaders() {
-    const [timeframe, setTimeframe] = useState("1D");
-    const [exchange, setExchange] = useState("HOSE");
+    const [timeframe, setTimeframe] = useState("1W");
+    const [exchange, setExchange] = useState<MarketGroup>("ALL");
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleFilterChange = (tf?: string, ex?: string) => {
+    // Data states
+    const [indexImpact, setIndexImpact] = useState<{ gainers: StockData[], losers: StockData[] }>({ gainers: [], losers: [] });
+    const [proprietary, setProprietary] = useState<{ buy: StockData[], sell: StockData[] }>({ buy: [], sell: [] });
+    const [foreign, setForeign] = useState<{ buy: StockData[], sell: StockData[] }>({ buy: [], sell: [] });
+
+    // Loading states
+    const [loadingImpact, setLoadingImpact] = useState(false);
+    const [loadingProp, setLoadingProp] = useState(false);
+    const [loadingForeign, setLoadingForeign] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+
+        // Fetch Index Impact
+        setLoadingImpact(true);
+        try {
+            const impactData = await MarketAPI.getIndexImpact(exchange, timeframe);
+            setIndexImpact({
+                gainers: convertIndexImpact(impactData.topUp || []).sort((a, b) => b.value - a.value),
+                losers: convertIndexImpact(impactData.topDown || []).sort((a, b) => a.value - b.value),
+            });
+        } catch (error) {
+            console.error('Failed to fetch index impact:', error);
+        } finally {
+            setLoadingImpact(false);
+        }
+
+        // Fetch Proprietary Trading
+        setLoadingProp(true);
+        try {
+            const propData = await MarketAPI.getTopProprietary(exchange, timeframe);
+            setProprietary({
+                buy: convertProprietary(propData.buy || []).sort((a, b) => b.value - a.value),
+                sell: convertProprietary(propData.sell || []).sort((a, b) => a.value - b.value),
+            });
+        } catch (error) {
+            console.error('Failed to fetch proprietary:', error);
+        } finally {
+            setLoadingProp(false);
+        }
+
+        // Fetch Foreign Trading
+        setLoadingForeign(true);
+        try {
+            const foreignData = await MarketAPI.getForeignNetValue(exchange, timeframe);
+            setForeign({
+                buy: convertForeign(foreignData.netBuy || []).sort((a, b) => b.value - a.value),
+                sell: convertForeign(foreignData.netSell || []).sort((a, b) => a.value - b.value),
+            });
+        } catch (error) {
+            console.error('Failed to fetch foreign:', error);
+        } finally {
+            setLoadingForeign(false);
+        }
+
+        setIsLoading(false);
+    }, [timeframe, exchange]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleFilterChange = (tf?: string, ex?: MarketGroup) => {
         if (tf) setTimeframe(tf);
         if (ex) setExchange(ex);
-
-        setIsLoading(true);
-        setTimeout(() => setIsLoading(false), 500); // Simulate API call
     };
 
     return (
@@ -236,47 +313,71 @@ export function MarketLeaders() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Select value={exchange} onValueChange={(val) => handleFilterChange(undefined, val)}>
+                    <Select value={exchange} onValueChange={(val) => handleFilterChange(undefined, val as MarketGroup)}>
                         <SelectTrigger className="!h-[26px] !min-h-[26px] w-[80px] !text-[10px] font-medium bg-background border-border/60 focus:ring-0 !px-2 !py-0 [&_svg]:!size-3 !gap-1">
                             <SelectValue placeholder="Sàn" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="HOSE">HOSE</SelectItem>
                             <SelectItem value="HNX">HNX</SelectItem>
-                            <SelectItem value="UPCOM">UPCOM</SelectItem>
+                            <SelectItem value="UPCOME">UPCOM</SelectItem>
                             <SelectItem value="ALL">Tất cả</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={fetchData}
+                        disabled={isLoading}
+                    >
+                        <RefreshCcw className={cn("h-3 w-3", isLoading && "animate-spin")} />
+                    </Button>
                 </div>
             </div>
 
             {/* Charts Section */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-px bg-border/40 overflow-y-auto lg:overflow-hidden">
 
-                {/* 1. Market Leaders */}
+                {/* 1. Market Leaders - Index Impact */}
                 <div className="bg-background/50 hover:bg-background/80 transition-colors p-3 flex flex-col gap-2 relative group">
                     <h3 className="text-xs font-bold text-muted-foreground uppercase mb-2">Nhóm dẫn dắt thị trường</h3>
                     <div className="flex-1 w-full pl-2 pr-2">
-                        <CSSBarChart leftData={leadersData.gainers} rightData={leadersData.losers} type="impact" />
-                    </div>
-                    {/* Hover Decoration */}
-                    <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/20 pointer-events-none transition-colors" />
-                </div>
-
-                {/* 2. Proprietary Trading (Tu Doanh) */}
-                <div className="bg-background/50 hover:bg-background/80 transition-colors p-3 flex flex-col gap-2 relative group">
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase mb-2">Tự doanh</h3>
-                    <div className="flex-1 w-full pl-2 pr-2">
-                        <CSSBarChart leftData={propTradingData.gainers} rightData={propTradingData.losers} type="value" />
+                        <CSSBarChart
+                            leftData={indexImpact.gainers}
+                            rightData={indexImpact.losers}
+                            type="impact"
+                            isLoading={loadingImpact}
+                        />
                     </div>
                     <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/20 pointer-events-none transition-colors" />
                 </div>
 
-                {/* 3. Foreign Trading (Khoi Ngoai) */}
+                {/* 2. Proprietary Trading (Tự Doanh) */}
                 <div className="bg-background/50 hover:bg-background/80 transition-colors p-3 flex flex-col gap-2 relative group">
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase mb-2">Khối ngoại</h3>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase mb-2">Tự doanh (tỷ VND)</h3>
                     <div className="flex-1 w-full pl-2 pr-2">
-                        <CSSBarChart leftData={foreignTradingData.gainers} rightData={foreignTradingData.losers} type="value" />
+                        <CSSBarChart
+                            leftData={proprietary.buy}
+                            rightData={proprietary.sell}
+                            type="value"
+                            isLoading={loadingProp}
+                        />
+                    </div>
+                    <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/20 pointer-events-none transition-colors" />
+                </div>
+
+                {/* 3. Foreign Trading (Khối Ngoại) */}
+                <div className="bg-background/50 hover:bg-background/80 transition-colors p-3 flex flex-col gap-2 relative group">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase mb-2">Khối ngoại (tỷ VND)</h3>
+                    <div className="flex-1 w-full pl-2 pr-2">
+                        <CSSBarChart
+                            leftData={foreign.buy}
+                            rightData={foreign.sell}
+                            type="value"
+                            isLoading={loadingForeign}
+                        />
                     </div>
                     <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/20 pointer-events-none transition-colors" />
                 </div>

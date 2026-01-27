@@ -6,6 +6,7 @@ interface AuthContextType {
     isLoading: boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<void>;
+    register: (email: string, password: string, fullname?: string) => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
@@ -66,6 +67,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const register = async (email: string, password: string, fullname?: string) => {
+        try {
+            // Call register API - returns { user, tokens }
+            const response = await AuthAPI.register(email, password, fullname);
+
+            // Save tokens
+            TokenService.setTokens(
+                response.tokens.access_token,
+                response.tokens.refresh_token
+            );
+
+            // Set user from response
+            setUser(response.user);
+        } catch (error) {
+            throw new Error(getErrorMessage(error));
+        }
+    };
+
     const logout = async () => {
         try {
             const refreshToken = TokenService.getRefreshToken();
@@ -94,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 isAuthenticated: !!user,
                 login,
+                register,
                 logout,
                 refreshUser,
             }}

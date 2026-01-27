@@ -1,38 +1,44 @@
-import {
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  OctagonXIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+'use client';
 
+import { useTheme } from 'next-themes';
+import { Toaster as Sonner, type ToasterProps } from 'sonner';
+
+/**
+ * Custom Toaster component optimized for IQX-Pro Dashboard
+ * - Position: top-right for desktop, top-center for mobile
+ * - Glassmorphism styling
+ * - Smooth animations
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme = 'system' } = useTheme();
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+      theme={theme as ToasterProps['theme']}
+      position="top-right"
+      gap={8}
+      offset={16}
+      visibleToasts={4}
+      closeButton={false}
+      richColors={false}
+      expand={false}
+      toastOptions={{
+        className: 'toast-item',
+        style: {
+          // Reset default sonner styles for custom toast
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+        },
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
+      style={{
+        // Custom positioning
+        '--offset': '16px',
+      } as React.CSSProperties}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };
