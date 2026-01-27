@@ -5,6 +5,7 @@ import './index.css'
 import '@fontsource-variable/manrope';
 import App from './App.tsx'
 import { AuthProvider } from './lib/auth-context.tsx'
+import { StockProvider } from './lib/stock-context.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
       storageKey="iqx-theme"
     >
       <AuthProvider>
-        <App />
+        <StockProvider>
+          <App />
+        </StockProvider>
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>,

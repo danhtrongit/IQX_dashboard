@@ -5,7 +5,7 @@ import { RightQuickNav, type RightPanelView } from "./RightQuickNav";
 import { QuickTrade } from "../features/trade/QuickTrade";
 import { PortfolioPanel } from "../features/portfolio/PortfolioPanel";
 import { NewsPanel } from "../features/news/NewsPanel";
-import { AIChatPanel } from "../features/chat/AIChatPanel";
+import { PatternsPanel } from "../features/pattern/PatternsPanel";
 import { ArixPanel } from "../features/arix/ArixPanel";
 import { RankingPanel } from "../features/ranking/RankingPanel";
 import { cn } from "@/lib/utils";
@@ -38,8 +38,8 @@ export function WorkspaceLayout({
                 return <PortfolioPanel />;
             case 'news':
                 return <NewsPanel />;
-            case 'ai':
-                return <AIChatPanel />;
+            case 'patterns':
+                return <PatternsPanel />;
             case 'arix':
                 return <ArixPanel />;
             case 'ranking':

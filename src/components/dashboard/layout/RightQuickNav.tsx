@@ -1,4 +1,4 @@
-import { ShoppingCart, Newspaper, ChevronLeft, ChevronRight, Briefcase, Bot, BarChart3, TrendingUp } from "lucide-react";
+import { ShoppingCart, Newspaper, ChevronLeft, ChevronRight, Briefcase, BarChart3, TrendingUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Tooltip,
@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Types for right panel navigation
-export type RightPanelView = 'trade' | 'portfolio' | 'news' | 'ai' | 'arix' | 'ranking';
+export type RightPanelView = 'trade' | 'portfolio' | 'news' | 'patterns' | 'arix' | 'ranking';
 
 interface RightQuickNavProps {
     activePanel?: RightPanelView;
@@ -107,13 +107,13 @@ export function RightQuickNav({
                     onClick={() => onPanelChange?.('news')}
                 />
 
-                {/* AI Chatbot Panel */}
+                {/* AI Pattern Recognition */}
                 <NavItem
-                    icon={Bot}
-                    label="AI Chat"
+                    icon={Sparkles}
+                    label="Mẫu hình"
                     isExpanded={isExpanded}
-                    isActive={activePanel === 'ai'}
-                    onClick={() => onPanelChange?.('ai')}
+                    isActive={activePanel === 'patterns'}
+                    onClick={() => onPanelChange?.('patterns')}
                 />
 
                 {/* Arix Hub - Arix Panel */}

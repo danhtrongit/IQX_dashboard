@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
+import { useStock } from "@/lib/stock-context";
 
 // ==================== Types ====================
 interface NewsItem {
@@ -97,8 +98,9 @@ function NewsItemCard({ item, symbol }: NewsItemCardProps) {
 
 // ==================== News Panel ====================
 export function NewsPanel() {
+    const { currentSymbol } = useStock();
     const [searchQuery, setSearchQuery] = useState("");
-    const [symbol, setSymbol] = useState("VNM"); // Default symbol
+    const [symbol, setSymbol] = useState(currentSymbol);
     const [news, setNews] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -124,6 +126,14 @@ export function NewsPanel() {
             setIsLoading(false);
         }
     }, []);
+
+    // Sync with global context when it changes
+    useEffect(() => {
+        if (currentSymbol && currentSymbol !== symbol) {
+            setSymbol(currentSymbol);
+            fetchNews(currentSymbol);
+        }
+    }, [currentSymbol]);
 
     // Fetch news on mount
     useEffect(() => {

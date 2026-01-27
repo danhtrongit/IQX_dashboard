@@ -148,7 +148,7 @@ const CSSBarChart = ({
             {/* LEFT COLUMN: Positive/Buy */}
             <div className="flex flex-col w-full">
                 <div className="flex justify-between items-center mb-2 px-1">
-                    <span className="text-xs font-bold text-foreground w-12 text-left">
+                    <span className="text-xs font-bold text-foreground whitespace-nowrap text-left">
                         {type === 'impact' ? 'Tăng' : 'Mua ròng'}
                     </span>
                     <span className="w-10"></span>
@@ -184,7 +184,7 @@ const CSSBarChart = ({
             <div className="flex flex-col w-full">
                 <div className="flex justify-between items-center mb-2 px-1">
                     <span className="w-10"></span>
-                    <span className="text-xs font-bold text-foreground w-12 text-right">
+                    <span className="text-xs font-bold text-foreground whitespace-nowrap text-right">
                         {type === 'impact' ? 'Giảm' : 'Bán ròng'}
                     </span>
                 </div>
