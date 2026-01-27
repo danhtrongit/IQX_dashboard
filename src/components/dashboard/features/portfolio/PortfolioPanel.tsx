@@ -1,29 +1,60 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, TrendingUp, TrendingDown, History, Briefcase, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, TrendingUp, TrendingDown, History, Briefcase, ArrowUpRight, ArrowDownRight, Star, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TradingAPI, formatCurrency, formatPercent, type PositionResponse, type OrderResponse } from "@/lib/trading-api";
+import {
+    TradingAPI,
+    formatCurrency,
+    formatPercent,
+    formatNumber,
+    formatVolume,
+    getPriceColorClass,
+    type PositionResponse,
+    type OrderResponse,
+    type PriceInfo,
+} from "@/lib/trading-api";
 import { TokenService } from "@/lib/api";
+import { WatchlistAPI, type WatchlistItem } from "@/lib/watchlist-api";
+import { useStock } from "@/lib/stock-context";
+import { toast } from "@/lib/toast";
+import { useMultiPriceStream } from "@/hooks/useMultiPriceStream";
 
-// ==================== Position Item ====================
+// ==================== Position Item with Realtime Price ====================
 interface PositionItemProps {
     position: PositionResponse;
+    priceInfo?: PriceInfo;
+    onClick: (symbol: string) => void;
 }
 
-function PositionItem({ position }: PositionItemProps) {
+function PositionItem({ position, priceInfo, onClick }: PositionItemProps) {
     const quantity = parseInt(position.quantity) || 0;
     const avgPrice = parseFloat(position.avg_price) || 0;
-    const marketPrice = position.market_price ? parseFloat(position.market_price) : null;
-    const pnl = position.unrealized_pnl ? parseFloat(position.unrealized_pnl) : null;
-    const pnlPercent = marketPrice && avgPrice ? ((marketPrice - avgPrice) / avgPrice) * 100 : null;
+
+    // Use realtime price if available, otherwise fallback to position's market_price
+    const marketPrice = priceInfo?.price ?? (position.market_price ? parseFloat(position.market_price) : null);
+
+    // Calculate P&L with realtime price
+    const marketValue = marketPrice ? marketPrice * quantity * 1000 : null;
+    const costBasis = avgPrice * quantity * 1000;
+    const pnl = marketValue ? marketValue - costBasis : null;
+    const pnlPercent = avgPrice > 0 && marketPrice ? ((marketPrice - avgPrice) / avgPrice) * 100 : null;
     const isProfit = pnl !== null && pnl >= 0;
 
+    // Price color based on ref price
+    const priceColorClass = priceInfo
+        ? getPriceColorClass(priceInfo.price, priceInfo.ref_price, priceInfo.ceiling, priceInfo.floor)
+        : "text-foreground";
+
     return (
-        <div className="flex items-center justify-between p-3 border-b border-border/30 hover:bg-secondary/30 transition-colors">
+        <div
+            className="flex items-center justify-between p-3 border-b border-border/30 hover:bg-secondary/30 transition-colors cursor-pointer"
+            onClick={() => onClick(position.symbol)}
+        >
             <div className="flex items-center gap-3">
                 <div className={cn(
                     "flex items-center justify-center w-8 h-8 rounded-lg",
@@ -43,16 +74,14 @@ function PositionItem({ position }: PositionItemProps) {
                         </Badge>
                     </div>
                     <div className="text-[10px] text-muted-foreground">
-                        TB: {avgPrice.toFixed(2)} • Thị trường: {marketPrice?.toFixed(2) || '—'}
+                        TB: {avgPrice.toFixed(2)} • Giá: <span className={priceColorClass}>{marketPrice?.toFixed(2) || '—'}</span>
                     </div>
                 </div>
             </div>
             <div className="text-right">
-                {position.market_value && (
-                    <div className="text-sm font-mono font-semibold">
-                        {formatCurrency(position.market_value, { compact: true })}
-                    </div>
-                )}
+                <div className="text-sm font-mono font-semibold">
+                    {marketValue ? formatCurrency(marketValue, { compact: true }) : '—'}
+                </div>
                 {pnl !== null && (
                     <div className={cn(
                         "text-[10px] font-mono font-medium",
@@ -62,7 +91,100 @@ function PositionItem({ position }: PositionItemProps) {
                         {pnlPercent !== null && ` (${formatPercent(pnlPercent)})`}
                     </div>
                 )}
+                {priceInfo?.volume && (
+                    <div className="text-[9px] text-muted-foreground">
+                        KL: {formatVolume(priceInfo.volume)}
+                    </div>
+                )}
             </div>
+        </div>
+    );
+}
+
+// ==================== Watchlist Item with Realtime Price ====================
+interface WatchlistItemProps {
+    item: WatchlistItem;
+    priceInfo?: PriceInfo;
+    onRemove: (symbol: string) => void;
+    onClick: (symbol: string) => void;
+}
+
+function WatchlistItemComponent({ item, priceInfo, onRemove, onClick }: WatchlistItemProps) {
+    const [isRemoving, setIsRemoving] = useState(false);
+
+    const handleRemove = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsRemoving(true);
+        try {
+            await WatchlistAPI.removeFromWatchlist(item.symbol);
+            onRemove(item.symbol);
+            toast.success(`Đã xóa ${item.symbol} khỏi danh sách theo dõi`);
+        } catch (error) {
+            console.error('Failed to remove from watchlist:', error);
+            toast.error('Không thể xóa khỏi danh sách theo dõi');
+        } finally {
+            setIsRemoving(false);
+        }
+    };
+
+    // Determine price color
+    const priceColorClass = priceInfo
+        ? getPriceColorClass(priceInfo.price, priceInfo.ref_price, priceInfo.ceiling, priceInfo.floor)
+        : "text-foreground";
+
+    const changeColorClass = priceInfo?.change !== null && priceInfo?.change !== undefined
+        ? priceInfo.change >= 0 ? "text-green-500" : "text-red-500"
+        : "text-muted-foreground";
+
+    return (
+        <div
+            className="flex items-center justify-between p-3 border-b border-border/30 hover:bg-secondary/30 transition-colors cursor-pointer"
+            onClick={() => onClick(item.symbol)}
+        >
+            <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-yellow-500/10">
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                </div>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{item.symbol}</span>
+                        {priceInfo && (
+                            <span className={cn("text-sm font-mono font-semibold", priceColorClass)}>
+                                {formatNumber(priceInfo.price)}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px]">
+                        {priceInfo && (
+                            <>
+                                <span className={changeColorClass}>
+                                    {priceInfo.change !== null && priceInfo.change >= 0 ? '+' : ''}
+                                    {formatNumber(priceInfo.change)} ({formatPercent(priceInfo.change_percent)})
+                                </span>
+                                <span className="text-muted-foreground">
+                                    KL: {formatVolume(priceInfo.volume)}
+                                </span>
+                            </>
+                        )}
+                        {!priceInfo && (
+                            <span className="text-muted-foreground">Đang tải...</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={handleRemove}
+                disabled={isRemoving}
+            >
+                {isRemoving ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                    <X className="w-3.5 h-3.5" />
+                )}
+            </Button>
         </div>
     );
 }
@@ -149,11 +271,28 @@ function OrderItem({ order }: OrderItemProps) {
 export function PortfolioPanel() {
     const [positions, setPositions] = useState<PositionResponse[]>([]);
     const [orders, setOrders] = useState<OrderResponse[]>([]);
+    const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
     const [isLoadingPositions, setIsLoadingPositions] = useState(true);
     const [isLoadingOrders, setIsLoadingOrders] = useState(true);
-    const [activeTab, setActiveTab] = useState<'positions' | 'history'>('positions');
+    const [isLoadingWatchlist, setIsLoadingWatchlist] = useState(true);
+    const [activeTab, setActiveTab] = useState<'positions' | 'watchlist' | 'history'>('positions');
+
+    const { setCurrentSymbol } = useStock();
 
     const isAuthenticated = TokenService.hasTokens();
+
+    // Collect all symbols for realtime streaming
+    const allSymbols = useMemo(() => {
+        const positionSymbols = positions.map(p => p.symbol);
+        const watchlistSymbols = watchlist.map(w => w.symbol);
+        return [...new Set([...positionSymbols, ...watchlistSymbols])];
+    }, [positions, watchlist]);
+
+    // Realtime price streaming for all symbols
+    const { prices } = useMultiPriceStream({
+        symbols: allSymbols,
+        enabled: isAuthenticated && allSymbols.length > 0,
+    });
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -182,17 +321,52 @@ export function PortfolioPanel() {
             }
         };
 
+        const fetchWatchlist = async () => {
+            setIsLoadingWatchlist(true);
+            try {
+                const data = await WatchlistAPI.getWatchlist();
+                setWatchlist(data.items);
+            } catch (error) {
+                console.error('Failed to fetch watchlist:', error);
+            } finally {
+                setIsLoadingWatchlist(false);
+            }
+        };
+
         fetchPositions();
         fetchOrders();
+        fetchWatchlist();
     }, [isAuthenticated]);
 
-    const totalMarketValue = positions.reduce((sum, p) => {
-        return sum + (parseFloat(p.market_value || '0') || 0);
-    }, 0);
+    const handleRemoveFromWatchlist = (symbol: string) => {
+        setWatchlist((prev) => prev.filter((item) => item.symbol !== symbol));
+    };
 
-    const totalPnL = positions.reduce((sum, p) => {
-        return sum + (parseFloat(p.unrealized_pnl || '0') || 0);
-    }, 0);
+    const handleItemClick = (symbol: string) => {
+        setCurrentSymbol(symbol);
+    };
+
+    // Calculate totals using realtime prices
+    const { totalMarketValue, totalPnL } = useMemo(() => {
+        let marketValue = 0;
+        let pnl = 0;
+
+        for (const pos of positions) {
+            const quantity = parseInt(pos.quantity) || 0;
+            const avgPrice = parseFloat(pos.avg_price) || 0;
+            const priceInfo = prices[pos.symbol];
+            const marketPrice = priceInfo?.price ?? (pos.market_price ? parseFloat(pos.market_price) : null);
+
+            if (marketPrice) {
+                const posValue = marketPrice * quantity * 1000;
+                const costBasis = avgPrice * quantity * 1000;
+                marketValue += posValue;
+                pnl += posValue - costBasis;
+            }
+        }
+
+        return { totalMarketValue: marketValue, totalPnL: pnl };
+    }, [positions, prices]);
 
     if (!isAuthenticated) {
         return (
@@ -237,11 +411,15 @@ export function PortfolioPanel() {
             </div>
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'positions' | 'history')} className="flex-1 flex flex-col">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'positions' | 'watchlist' | 'history')} className="flex-1 flex flex-col">
                 <TabsList className="w-full justify-start rounded-none border-b border-border/40 h-9 bg-transparent px-2">
                     <TabsTrigger value="positions" className="text-xs data-[state=active]:shadow-none">
                         <Briefcase className="w-3 h-3 mr-1.5" />
-                        Danh mục
+                        Nắm giữ
+                    </TabsTrigger>
+                    <TabsTrigger value="watchlist" className="text-xs data-[state=active]:shadow-none">
+                        <Star className="w-3 h-3 mr-1.5" />
+                        Theo dõi
                     </TabsTrigger>
                     <TabsTrigger value="history" className="text-xs data-[state=active]:shadow-none">
                         <History className="w-3 h-3 mr-1.5" />
@@ -262,7 +440,40 @@ export function PortfolioPanel() {
                         ) : (
                             <div>
                                 {positions.map((position) => (
-                                    <PositionItem key={position.symbol} position={position} />
+                                    <PositionItem
+                                        key={position.symbol}
+                                        position={position}
+                                        priceInfo={prices[position.symbol]}
+                                        onClick={handleItemClick}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="watchlist" className="flex-1 m-0 overflow-hidden">
+                    <ScrollArea className="h-full">
+                        {isLoadingWatchlist ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                            </div>
+                        ) : watchlist.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">
+                                <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                <p>Chưa có cổ phiếu theo dõi</p>
+                                <p className="text-[10px] mt-1">Nhấn vào biểu tượng ngôi sao để thêm</p>
+                            </div>
+                        ) : (
+                            <div>
+                                {watchlist.map((item) => (
+                                    <WatchlistItemComponent
+                                        key={item.id}
+                                        item={item}
+                                        priceInfo={prices[item.symbol]}
+                                        onRemove={handleRemoveFromWatchlist}
+                                        onClick={handleItemClick}
+                                    />
                                 ))}
                             </div>
                         )}

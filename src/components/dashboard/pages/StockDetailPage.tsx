@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTheme } from "next-themes";
 import {
@@ -13,11 +13,23 @@ import {
     BarChart3,
     FileText,
     Activity,
-    Brain
+    Brain,
+    Star,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SymbolsAPI, type SymbolResponse } from "@/lib/symbols-api";
+import { useStock } from "@/lib/stock-context";
+import { useAuth } from "@/lib/auth-context";
+import { WatchlistAPI } from "@/lib/watchlist-api";
+import { toast } from "@/lib/toast";
 import { WorkspaceLayout } from "../layout/WorkspaceLayout";
 import { TradingViewChart } from "../features/chart/TradingViewChart";
 import {
@@ -27,7 +39,7 @@ import {
     EventsNewsTab,
     AnalysisReportsTab,
     TechnicalAnalysisTab,
-    AIInsightTab
+    AIInsightTab,
 } from "../features/stock-info";
 import { cn } from "@/lib/utils";
 
@@ -63,12 +75,20 @@ function StockHeader({
     activeTab,
     onTabChange,
     icbName,
-    onBack
+    onBack,
+    symbol,
+    isInWatchlist,
+    isWatchlistLoading,
+    onToggleWatchlist,
 }: {
     activeTab: MainTabType;
     onTabChange: (tab: MainTabType) => void;
     icbName?: string;
     onBack: () => void;
+    symbol: string;
+    isInWatchlist: boolean;
+    isWatchlistLoading: boolean;
+    onToggleWatchlist: () => void;
 }) {
     return (
         <div className="flex items-center gap-3 px-3 py-2">
@@ -81,6 +101,38 @@ function StockHeader({
             >
                 <ArrowLeft className="h-4 w-4" />
             </Button>
+
+            {/* Symbol + Watchlist button */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                <span className="font-bold text-sm">{symbol}</span>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                    "h-7 w-7 transition-colors",
+                                    isInWatchlist
+                                        ? "text-yellow-400 hover:text-yellow-500"
+                                        : "text-muted-foreground hover:text-yellow-400"
+                                )}
+                                onClick={onToggleWatchlist}
+                                disabled={isWatchlistLoading}
+                            >
+                                {isWatchlistLoading ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Star className={cn("h-3.5 w-3.5", isInWatchlist && "fill-current")} />
+                                )}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {isInWatchlist ? 'Bỏ theo dõi' : 'Theo dõi'}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
 
             {/* Tabs - Inline in Header */}
             <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
@@ -185,6 +237,12 @@ export function StockDetailPage() {
     const [stockData, setStockData] = useState<SymbolResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { setCurrentSymbol } = useStock();
+    const { isAuthenticated } = useAuth();
+
+    // Watchlist state
+    const [isInWatchlist, setIsInWatchlist] = useState(false);
+    const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
 
     // Determine active tab from URL or default to 'chart'
     const activeTab = useMemo(() => {
@@ -204,15 +262,68 @@ export function StockDetailPage() {
 
     const handleBack = () => navigate("/");
 
+    // Check watchlist status
+    useEffect(() => {
+        if (!isAuthenticated || !symbol) {
+            setIsInWatchlist(false);
+            return;
+        }
+
+        const checkWatchlist = async () => {
+            try {
+                const result = await WatchlistAPI.checkSymbol(symbol.toUpperCase());
+                setIsInWatchlist(result.in_watchlist);
+            } catch (error) {
+                console.error('Failed to check watchlist:', error);
+                setIsInWatchlist(false);
+            }
+        };
+
+        checkWatchlist();
+    }, [isAuthenticated, symbol]);
+
+    // Toggle watchlist handler
+    const handleToggleWatchlist = useCallback(async () => {
+        if (!isAuthenticated) {
+            toast.error('Vui lòng đăng nhập để theo dõi cổ phiếu');
+            return;
+        }
+
+        if (!symbol) return;
+
+        const upperSymbol = symbol.toUpperCase();
+        setIsWatchlistLoading(true);
+        try {
+            if (isInWatchlist) {
+                await WatchlistAPI.removeFromWatchlist(upperSymbol);
+                setIsInWatchlist(false);
+                toast.success(`Đã xóa ${upperSymbol} khỏi danh sách theo dõi`);
+            } else {
+                await WatchlistAPI.addToWatchlist({ symbol: upperSymbol });
+                setIsInWatchlist(true);
+                toast.success(`Đã thêm ${upperSymbol} vào danh sách theo dõi`);
+            }
+        } catch (error) {
+            console.error('Failed to toggle watchlist:', error);
+            toast.error('Không thể cập nhật danh sách theo dõi');
+        } finally {
+            setIsWatchlistLoading(false);
+        }
+    }, [isAuthenticated, symbol, isInWatchlist]);
+
     useEffect(() => {
         const fetchStockData = async () => {
             if (!symbol) return;
+
+            const upperSymbol = symbol.toUpperCase();
+
+            // Update global stock context
+            setCurrentSymbol(upperSymbol);
 
             setIsLoading(true);
             setError(null);
 
             try {
-                const upperSymbol = symbol.toUpperCase();
                 // Fetch symbol info only (detail and price not needed without SEO)
                 const symbolData = await SymbolsAPI.getBySymbol(upperSymbol);
                 setStockData(symbolData);
@@ -225,7 +336,7 @@ export function StockDetailPage() {
         };
 
         fetchStockData();
-    }, [symbol]);
+    }, [symbol, setCurrentSymbol]);
 
     // Loading state
     if (isLoading) {
@@ -254,6 +365,10 @@ export function StockDetailPage() {
                     onTabChange={handleTabChange}
                     icbName={stockData.icb_name2 ?? undefined}
                     onBack={handleBack}
+                    symbol={symbol?.toUpperCase() ?? ''}
+                    isInWatchlist={isInWatchlist}
+                    isWatchlistLoading={isWatchlistLoading}
+                    onToggleWatchlist={handleToggleWatchlist}
                 />
             }
         >

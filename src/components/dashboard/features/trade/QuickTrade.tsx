@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
 import { Search, Star, Loader2, X, TrendingUp, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +27,8 @@ import {
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { SymbolsAPI, type SymbolResponse } from "@/lib/symbols-api";
 import { useAuth } from "@/lib/auth-context";
+import { useStock } from "@/lib/stock-context";
+import { WatchlistAPI } from "@/lib/watchlist-api";
 
 // ==================== Debounce Hook ====================
 function useDebounce<T>(value: T, delay: number): T {
@@ -335,25 +336,20 @@ const SymbolSearch = ({ selectedSymbol, onSelect }: SymbolSearchProps) => {
 
 // ==================== Main QuickTrade Component ====================
 
-interface QuickTradeProps {
-    symbol?: string;
-}
+export function QuickTrade() {
+    const { currentSymbol } = useStock();
 
-export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
-    const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
+    // Symbol state - sync with global context
+    const [selectedSymbol, setSelectedSymbol] = useState(currentSymbol);
+    const [organName, setOrganName] = useState<string | null>(null);
 
-    // Symbol state - prioritize prop > route > default
-    const [selectedSymbol, setSelectedSymbol] = useState("ACB");
-    const [organName, setOrganName] = useState<string | null>("Ngân hàng TMCP Á Châu");
-
-    // Sync symbol from prop or route
+    // Sync symbol from context when it changes
     useEffect(() => {
-        const newSymbol = propSymbol || routeSymbol?.toUpperCase();
-        if (newSymbol && newSymbol !== selectedSymbol) {
-            setSelectedSymbol(newSymbol);
+        if (currentSymbol && currentSymbol !== selectedSymbol) {
+            setSelectedSymbol(currentSymbol);
             setOrganName(null); // Will be fetched by price stream
         }
-    }, [propSymbol, routeSymbol]);
+    }, [currentSymbol]);
 
     // Order form state
     const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
@@ -369,10 +365,14 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
         error: priceError,
     } = usePriceStream({ symbol: selectedSymbol });
 
-    // API data state for wallet/positions  
+    // API data state for wallet/positions
     const [wallet, setWallet] = useState<WalletResponse | null>(null);
     const [positions, setPositions] = useState<PositionResponse[]>([]);
     const [isActivating, setIsActivating] = useState(false);
+
+    // Watchlist state
+    const [isInWatchlist, setIsInWatchlist] = useState(false);
+    const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
 
     // Check if user is authenticated using reactive hook
     const { isAuthenticated } = useAuth();
@@ -417,6 +417,52 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
     useEffect(() => {
         fetchAccountData();
     }, [fetchAccountData]);
+
+    // Check watchlist status when symbol changes
+    useEffect(() => {
+        if (!isAuthenticated || !selectedSymbol) {
+            setIsInWatchlist(false);
+            return;
+        }
+
+        const checkWatchlist = async () => {
+            try {
+                const result = await WatchlistAPI.checkSymbol(selectedSymbol);
+                setIsInWatchlist(result.in_watchlist);
+            } catch (error) {
+                console.error('Failed to check watchlist:', error);
+                setIsInWatchlist(false);
+            }
+        };
+
+        checkWatchlist();
+    }, [isAuthenticated, selectedSymbol]);
+
+    // Toggle watchlist handler
+    const handleToggleWatchlist = useCallback(async () => {
+        if (!isAuthenticated) {
+            toast.error('Vui lòng đăng nhập để theo dõi cổ phiếu');
+            return;
+        }
+
+        setIsWatchlistLoading(true);
+        try {
+            if (isInWatchlist) {
+                await WatchlistAPI.removeFromWatchlist(selectedSymbol);
+                setIsInWatchlist(false);
+                toast.success(`Đã xóa ${selectedSymbol} khỏi danh sách theo dõi`);
+            } else {
+                await WatchlistAPI.addToWatchlist({ symbol: selectedSymbol });
+                setIsInWatchlist(true);
+                toast.success(`Đã thêm ${selectedSymbol} vào danh sách theo dõi`);
+            }
+        } catch (error) {
+            console.error('Failed to toggle watchlist:', error);
+            toast.error('Không thể cập nhật danh sách theo dõi');
+        } finally {
+            setIsWatchlistLoading(false);
+        }
+    }, [isAuthenticated, selectedSymbol, isInWatchlist]);
 
     // Get position for selected symbol (for sell)
     const currentPosition = useMemo(() => {
@@ -621,12 +667,25 @@ export function QuickTrade({ symbol: propSymbol }: QuickTradeProps) {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-yellow-400"
+                                    className={cn(
+                                        "h-8 w-8 transition-colors",
+                                        isInWatchlist
+                                            ? "text-yellow-400 hover:text-yellow-500"
+                                            : "text-muted-foreground hover:text-yellow-400"
+                                    )}
+                                    onClick={handleToggleWatchlist}
+                                    disabled={isWatchlistLoading}
                                 >
-                                    <Star className="h-4 w-4" />
+                                    {isWatchlistLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Star className={cn("h-4 w-4", isInWatchlist && "fill-current")} />
+                                    )}
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Theo dõi</TooltipContent>
+                            <TooltipContent>
+                                {isInWatchlist ? 'Bỏ theo dõi' : 'Theo dõi'}
+                            </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 </div>
