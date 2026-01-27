@@ -16,7 +16,6 @@ export function TopHeader() {
     const menuItems = [
         { label: "Giao dịch", path: "/" },
         { label: "Ngành", path: "/nganh" },
-        { label: "Mẫu hình", path: "/mau-hinh" },
         { label: "Bảng giá", path: "/bang-gia" },
         { label: "Lọc cổ phiếu", path: "/loc-co-phieu" },
     ];
