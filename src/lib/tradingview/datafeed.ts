@@ -588,7 +588,9 @@ export class VietnamStockDatafeed implements IBasicDataFeed {
             });
 
             const bars: Bar[] = response.data.data.map(item => ({
-                time: new Date(item.time).getTime(),
+                // Parse time as UTC to avoid timezone offset issues
+                // Backend returns "2026-01-26 00:00:00" which should be treated as UTC midnight
+                time: this.parseTimeAsUTC(item.time),
                 open: item.open,
                 high: item.high,
                 low: item.low,
@@ -646,6 +648,14 @@ export class VietnamStockDatafeed implements IBasicDataFeed {
         const upper = exchange.toUpperCase();
         if (upper === 'HSX') return 'HOSE';
         return upper;
+    }
+
+    private parseTimeAsUTC(timeStr: string): number {
+        // Backend returns time in ISO format like "2026-01-26T00:00:00"
+        // We need to treat this as the trading date in UTC, not local time
+        // Extract the date part and create a UTC midnight timestamp
+        const datePart = timeStr.split('T')[0];
+        return new Date(datePart + 'T00:00:00Z').getTime();
     }
 }
 
