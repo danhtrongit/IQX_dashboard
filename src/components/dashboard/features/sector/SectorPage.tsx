@@ -399,7 +399,6 @@ const InfoTab = ({ sectors, onSectorClick, visibleColumns }: InfoTabProps) => {
                 case '6m': aVal = a.percent_change_6m; bVal = b.percent_change_6m; break;
                 case 'ytd': aVal = a.percent_change_ytd; bVal = b.percent_change_ytd; break;
                 case '1y': aVal = a.percent_change_1y; bVal = b.percent_change_1y; break;
-                case '1y': aVal = a.percent_change_1y; bVal = b.percent_change_1y; break;
             }
 
             if (aVal === null) return 1;
