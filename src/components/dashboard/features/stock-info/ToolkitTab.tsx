@@ -166,8 +166,8 @@ export function ToolkitTab({ symbol }: ToolkitTabProps) {
     const [data, setData] = useState<ToolkitResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [period, setPeriod] = useState<"quarter" | "year">("year");
-    const [limit] = useState(8);
+    const [period] = useState<"year">("year");
+    const [limit] = useState(1);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -263,31 +263,7 @@ export function ToolkitTab({ symbol }: ToolkitTabProps) {
                     </span>
                 </div>
 
-                {/* Period Filter */}
-                <div className="flex items-center gap-0.5 p-0.5 bg-secondary/50 rounded">
-                    <button
-                        onClick={() => setPeriod("quarter")}
-                        className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
-                            period === "quarter"
-                                ? "bg-background text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        Quý
-                    </button>
-                    <button
-                        onClick={() => setPeriod("year")}
-                        className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
-                            period === "year"
-                                ? "bg-background text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        Năm
-                    </button>
-                </div>
+                <div className="text-[10px] text-muted-foreground">Năm gần nhất</div>
             </div>
 
             {/* Content */}
