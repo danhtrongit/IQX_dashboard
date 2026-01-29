@@ -172,6 +172,78 @@ export interface RatioResponse {
     count: number;
 }
 
+// ==================== Toolkit API Types ====================
+
+/**
+ * Toolkit summary metrics
+ */
+export interface ToolkitSummary {
+    roe: number | null;
+    roa: number | null;
+    debt_equity: number | null;
+    gross_margin: number | null;
+    net_margin: number | null;
+    asset_turnover: number | null;
+}
+
+/**
+ * Toolkit series item for charts
+ */
+export interface ToolkitSeriesItem {
+    key: string;
+    name: string;
+    values: (number | null)[];
+}
+
+/**
+ * Toolkit percent series item
+ */
+export interface ToolkitPercentSeriesItem {
+    key: string;
+    values: (number | null)[];
+}
+
+/**
+ * Toolkit composition data for stacked charts
+ */
+export interface ToolkitComposition {
+    labels: string[];
+    series: ToolkitSeriesItem[];
+    percent_series: ToolkitPercentSeriesItem[];
+}
+
+/**
+ * Toolkit comparison metric with YoY
+ */
+export interface ToolkitComparisonMetric {
+    key: string;
+    name: string;
+    values: (number | null)[];
+    yoy: (number | null)[];
+}
+
+/**
+ * Toolkit comparison data
+ */
+export interface ToolkitComparison {
+    labels: string[];
+    metrics: ToolkitComparisonMetric[];
+}
+
+/**
+ * Toolkit response
+ */
+export interface ToolkitResponse {
+    symbol: string;
+    type: 'bank' | 'non-bank';
+    period: string;
+    limit: number;
+    summary: ToolkitSummary;
+    asset_composition: ToolkitComposition;
+    revenue_composition: ToolkitComposition;
+    comparison: ToolkitComparison;
+}
+
 // ==================== Insight API Types ====================
 
 /**
@@ -379,6 +451,22 @@ export const FinancialsAPI = {
     ): Promise<RatioResponse> => {
         const response = await api.get<RatioResponse>(`/financials/${symbol}/ratio`, {
             params: { period, limit },
+        });
+        return response.data;
+    },
+
+    /**
+     * Get toolkit data with aggregated financial metrics
+     * GET /financials/{symbol}/toolkit
+     */
+    getToolkit: async (
+        symbol: string,
+        period = 'year',
+        limit = 8,
+        lang = 'vi'
+    ): Promise<ToolkitResponse> => {
+        const response = await api.get<ToolkitResponse>(`/financials/${symbol}/toolkit`, {
+            params: { period, limit, lang },
         });
         return response.data;
     },

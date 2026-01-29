@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { BarChart3, DollarSign, Wallet, ArrowUpDown, Loader2, Table, LineChart as LineChartIcon, Plus, Minus } from "lucide-react";
+import { BarChart3, DollarSign, Wallet, ArrowUpDown, Loader2, Table, LineChart as LineChartIcon, Plus, Minus, Wrench } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FinancialsAPI, type FinancialReportResponse, type RatioResponse } from "@/lib/stock-api";
 import { formatCompact } from "@/lib/format";
@@ -19,6 +19,7 @@ import {
     Legend,
     ComposedChart,
 } from "recharts";
+import { ToolkitTab } from "./ToolkitTab";
 
 interface FinancialsTabProps {
     symbol: string;
@@ -79,7 +80,7 @@ const CustomYAxisTick = ({ x, y, payload, formatter }: any) => {
 };
 
 // Tab types
-type FinancialViewType = 'income' | 'ratio' | 'balance' | 'cashflow';
+type FinancialViewType = 'income' | 'ratio' | 'balance' | 'cashflow' | 'toolkit';
 type DisplayMode = 'table' | 'chart';
 
 const financialTabs: { id: FinancialViewType; label: string; icon: React.ReactNode }[] = [
@@ -87,6 +88,7 @@ const financialTabs: { id: FinancialViewType; label: string; icon: React.ReactNo
     { id: 'balance', label: 'CĐKT', icon: <Wallet className="h-3 w-3" /> },
     { id: 'cashflow', label: 'LCTT', icon: <ArrowUpDown className="h-3 w-3" /> },
     { id: 'ratio', label: 'Chỉ số', icon: <BarChart3 className="h-3 w-3" /> },
+    { id: 'toolkit', label: 'Toolkit', icon: <Wrench className="h-3 w-3" /> },
 ];
 
 // =============================================
@@ -795,7 +797,9 @@ export function FinancialsTab({ symbol }: FinancialsTabProps) {
 
             {/* Content */}
             <div className="flex-1 min-h-0 overflow-hidden">
-                {currentData.length === 0 ? (
+                {activeView === 'toolkit' ? (
+                    <ToolkitTab symbol={symbol} />
+                ) : currentData.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-muted-foreground">
                         <div className="text-center">
                             <BarChart3 className="h-10 w-10 mx-auto mb-2 opacity-30" />
