@@ -777,7 +777,7 @@ export function FinancialsTab({ symbol }: FinancialsTabProps) {
 
                     {/* Limit Filter */}
                     <div className="flex items-center gap-0.5 p-0.5 bg-secondary/50 rounded">
-                        {[4, 8, 12].map((l) => (
+                        {[1, 4, 8, 12].map((l) => (
                             <button
                                 key={l}
                                 onClick={() => setLimit(l)}
@@ -798,7 +798,7 @@ export function FinancialsTab({ symbol }: FinancialsTabProps) {
             {/* Content */}
             <div className="flex-1 min-h-0 overflow-hidden">
                 {activeView === 'toolkit' ? (
-                    <ToolkitTab symbol={symbol} />
+                    <ToolkitTab symbol={symbol} period={period} limit={limit} />
                 ) : currentData.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-muted-foreground">
                         <div className="text-center">

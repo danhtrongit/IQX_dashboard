@@ -1,97 +1,40 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { FinancialsAPI, type ToolkitResponse } from "@/lib/stock-api";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Loader2 } from "lucide-react";
+import { FinancialsAPI, type ToolkitResponse, type ToolkitComposition, type ToolkitSinglePeriodCompare } from "@/lib/stock-api";
 import { formatCompact } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import {
     BarChart,
     Bar,
+    LabelList,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Legend,
-    ComposedChart,
-    Line,
+    Cell,
 } from "recharts";
 
 interface ToolkitTabProps {
     symbol: string;
+    period: "year" | "quarter";
+    limit: number;
 }
 
-// Format percentage with sign
-const formatPercent = (value: number | null): string => {
-    if (value === null || value === undefined || isNaN(value)) return "—";
-    return `${(value * 100).toFixed(2)}%`;
-};
-
-// Format YoY change with sign and color
-const formatYoY = (value: number | null): { text: string; color: string; icon: React.ReactNode } => {
-    if (value === null || value === undefined || isNaN(value)) {
-        return { text: "—", color: "text-muted-foreground", icon: <Minus className="h-3 w-3" /> };
-    }
-    const pct = (value * 100).toFixed(1);
-    if (value > 0) {
-        return {
-            text: `+${pct}%`,
-            color: "text-emerald-500",
-            icon: <TrendingUp className="h-3 w-3" />,
-        };
-    } else if (value < 0) {
-        return {
-            text: `${pct}%`,
-            color: "text-red-500",
-            icon: <TrendingDown className="h-3 w-3" />,
-        };
-    }
-    return { text: "0%", color: "text-muted-foreground", icon: <Minus className="h-3 w-3" /> };
-};
-
 // Custom axis tick
-const CustomAxisTick = ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-    return (
-        <text
-            x={x}
-            y={y}
-            textAnchor="middle"
-            className="fill-muted-foreground text-[10px]"
-            dy={4}
-        >
-            {payload.value}
-        </text>
-    );
-};
+const CustomAxisTick = ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => (
+    <text x={x} y={y} textAnchor="middle" className="fill-muted-foreground text-[10px]" dy={4}>
+        {payload.value}
+    </text>
+);
 
 // Custom Y-axis tick
-const CustomYAxisTick = ({
-    x,
-    y,
-    payload,
-    isPercent = false,
-}: {
-    x: number;
-    y: number;
-    payload: { value: number };
-    isPercent?: boolean;
-}) => {
-    const formattedValue = isPercent
-        ? `${(payload.value * 100).toFixed(0)}%`
-        : formatCompact(payload.value);
-    return (
-        <text
-            x={x}
-            y={y}
-            textAnchor="end"
-            className="fill-muted-foreground text-[10px]"
-            dy={4}
-        >
-            {formattedValue}
-        </text>
-    );
-};
+const CustomYAxisTick = ({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => (
+    <text x={x} y={y} textAnchor="end" className="fill-muted-foreground text-[10px]" dy={4}>
+        {formatCompact(payload.value)}
+    </text>
+);
 
 // Custom tooltip for stacked bar chart
 const StackedTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
@@ -103,19 +46,16 @@ const StackedTooltip = ({ active, payload, label }: { active?: boolean; payload?
                 {payload.map((entry, index) => (
                     <div key={index} className="flex items-center justify-between gap-4 text-[11px]">
                         <div className="flex items-center gap-2">
-                            <div
-                                className="h-2.5 w-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: entry.color }}
-                            />
+                            <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
                             <span className="text-muted-foreground">{entry.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold text-foreground">
-                                {formatCompact(entry.value)}
-                            </span>
-                            <span className="text-muted-foreground text-[10px]">
-                                ({((entry.value / total) * 100).toFixed(1)}%)
-                            </span>
+                            <span className="font-mono font-semibold text-foreground">{formatCompact(entry.value)}</span>
+                            {total > 0 && (
+                                <span className="text-muted-foreground text-[10px]">
+                                    ({((entry.value / total) * 100).toFixed(1)}%)
+                                </span>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -129,26 +69,8 @@ const StackedTooltip = ({ active, payload, label }: { active?: boolean; payload?
     return null;
 };
 
-// Custom legend
-const CustomLegend = ({ payload }: { payload?: Array<{ value: string; color: string }> }) => {
-    if (!payload || payload.length === 0) return null;
-    return (
-        <div className="flex flex-wrap justify-center gap-3 pt-2">
-            {payload.map((entry, index) => (
-                <div key={index} className="flex items-center gap-1.5 text-[10px]">
-                    <div
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="text-muted-foreground">{entry.value}</span>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-// Color palette for stacked bars
-const ASSET_COLORS = {
+// Color palettes
+const ASSET_COLORS: Record<string, string> = {
     cash_short_invest: "#3b82f6",
     receivable: "#8b5cf6",
     inventory: "#f59e0b",
@@ -156,80 +78,277 @@ const ASSET_COLORS = {
     other_asset: "#94a3b8",
 };
 
-const REVENUE_COLORS = {
-    core_revenue: "#00c076",
+const LIABILITY_COLORS: Record<string, string> = {
+    equity: "#00c076",
+    debt: "#ef4444",
+    other_liabilities: "#94a3b8",
+};
+
+const REVENUE_COLORS: Record<string, string> = {
+    gross_profit: "#00c076",
     financial_income: "#3b82f6",
     other_income: "#f59e0b",
 };
 
-export function ToolkitTab({ symbol }: ToolkitTabProps) {
-    const [data, setData] = useState<ToolkitResponse | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [period] = useState<"year">("year");
-    const [limit] = useState(1);
+const EXPENSE_COLORS: Record<string, string> = {
+    cogs: "#ef4444",
+    selling: "#f59e0b",
+    admin: "#8b5cf6",
+    interest: "#64748b",
+};
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const result = await FinancialsAPI.getToolkit(symbol, period, limit);
-                setData(result);
-            } catch (err) {
-                console.error("Failed to fetch toolkit data:", err);
-                setError("Không thể tải dữ liệu toolkit");
-            } finally {
-                setIsLoading(false);
-            }
-        };
+// Reusable chart components
+interface StackedChartProps {
+    title: string;
+    data: ToolkitComposition;
+    colors: Record<string, string>;
+}
 
-        fetchData();
-    }, [symbol, period, limit]);
-
-    // Prepare asset composition chart data
-    const assetChartData = useMemo(() => {
-        if (!data?.asset_composition) return [];
-
-        const { labels, series } = data.asset_composition;
-        return labels.map((label, i) => {
-            const point: Record<string, string | number | null> = { period: label };
-            series.forEach((s) => {
-                if (s.key !== "total_asset") {
-                    point[s.key] = s.values[i];
-                }
-            });
-            return point;
-        });
+function StackedChart({ title, data, colors }: StackedChartProps) {
+    const hasData = useMemo(() => {
+        if (!data.labels.length) return false;
+        return data.series.some((s) => s.values.some((v) => v !== null && v !== undefined));
     }, [data]);
 
-    // Prepare revenue composition chart data
-    const revenueChartData = useMemo(() => {
-        if (!data?.revenue_composition) return [];
-
-        const { labels, series } = data.revenue_composition;
-        return labels.map((label, i) => {
+    const chartData = useMemo(() => {
+        return data.labels.map((label, i) => {
             const point: Record<string, string | number | null> = { period: label };
-            series.forEach((s) => {
+            data.series.forEach((s) => {
                 point[s.key] = s.values[i];
             });
             return point;
         });
     }, [data]);
 
-    // Prepare comparison chart data
-    const comparisonChartData = useMemo(() => {
-        if (!data?.comparison) return [];
+    if (!hasData) {
+        return (
+            <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
+                <div className="text-[11px] font-medium text-foreground mb-3">{title}</div>
+                <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+                    Không có dữ liệu
+                </div>
+            </div>
+        );
+    }
 
-        const { labels, metrics } = data.comparison;
-        return labels.map((label, i) => {
-            const point: Record<string, string | number | null> = { period: label };
-            metrics.forEach((m) => {
-                point[`${m.key}_yoy`] = m.yoy[i];
-            });
-            return point;
+    return (
+        <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
+            <div className="text-[11px] font-medium text-foreground mb-3">{title}</div>
+            <div className="h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" opacity={0.3} vertical={false} />
+                        <XAxis dataKey="period" tick={(props) => <CustomAxisTick {...props} />} axisLine={false} tickLine={false} />
+                        <YAxis tick={(props) => <CustomYAxisTick {...props} />} axisLine={false} tickLine={false} width={55} />
+                        <Tooltip content={<StackedTooltip />} />
+                        {data.series.map((s) => (
+                            <Bar key={s.key} dataKey={s.key} name={s.name} stackId="stack" fill={colors[s.key] || "#888"} />
+                        ))}
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+}
+
+
+// Single-period Comparison Chart (6+ separate bars)
+interface SinglePeriodCompareChartProps {
+    title: string;
+    data: ToolkitSinglePeriodCompare;
+    colors: Record<string, string>;
+}
+
+function SinglePeriodCompareChart({ title, data, colors }: SinglePeriodCompareChartProps) {
+    const shortLabel = useCallback((key: string, full: string) => {
+        // Hand-tuned abbreviations for common toolkit keys
+        const map: Record<string, string> = {
+            total_asset: "Tổng",
+            total_sources: "Tổng",
+            total: "Tổng",
+            equity: "Vốn",
+            debt: "Vay",
+            other_liabilities: "Nợ khác",
+            cash_short_invest: "Tiền/ĐTNH",
+            receivable: "Phải thu",
+            inventory: "Tồn kho",
+            long_term_invest: "ĐT dài",
+            other_asset: "TS khác",
+            gross_profit: "LN gộp",
+            financial_income: "TC",
+            other_income: "Khác",
+            cogs: "Giá vốn",
+            selling: "Bán hàng",
+            admin: "QLDN",
+            interest: "Lãi vay",
+            cfo: "CFO",
+            cfi: "CFI",
+            cff: "CFF",
+            delta_cash: "Thuần",
+        };
+        if (map[key]) return map[key];
+
+        // Fallback: compress Vietnamese phrases
+        const cleaned = full
+            .replace(/\(.*?\)/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        const words = cleaned.split(" ").filter(Boolean);
+        if (words.length <= 2) return cleaned;
+        return words.slice(0, 2).join(" ");
+    }, []);
+
+    const chartData = useMemo(() => {
+        // total first, then components (excluding total)
+        const items = [...data.items].sort((a, b) => {
+            if (a.key === data.total_key) return -1;
+            if (b.key === data.total_key) return 1;
+            return 0;
         });
-    }, [data]);
+
+        const totalItem = items.find((it) => it.key === data.total_key);
+        const rest = items.filter((it) => it.key !== data.total_key);
+
+        const out: Array<{ name: string; fullName: string; key: string; base: number; value: number | null }> = [];
+
+        const totalValue = totalItem?.value ?? data.total_value ?? null;
+        out.push({
+            name: shortLabel(data.total_key, totalItem?.name || data.total_name),
+            fullName: totalItem?.name || data.total_name,
+            key: data.total_key,
+            base: 0,
+            value: totalValue,
+        });
+
+        // Waterfall-like: each bar starts where previous ends
+        let running = 0;
+        for (const it of rest) {
+            const v = it.value;
+            out.push({
+                name: shortLabel(it.key, it.name),
+                fullName: it.name,
+                key: it.key,
+                base: running,
+                value: v,
+            });
+            if (typeof v === "number") {
+                running += v;
+            }
+        }
+
+        return out;
+    }, [data, shortLabel]);
+
+    const hasData = useMemo(() => {
+        return chartData.some((d) => d.value !== null && d.value !== undefined);
+    }, [chartData]);
+
+    if (!hasData) {
+        return (
+            <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
+                <div className="text-[11px] font-medium text-foreground mb-3">{title}</div>
+                <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+                    Không có dữ liệu
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
+            <div className="flex items-baseline justify-between mb-3">
+                <div className="text-[11px] font-medium text-foreground">{title}</div>
+                <div className="text-[10px] text-muted-foreground">{data.period_label}</div>
+            </div>
+
+            <div className="h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                        data={chartData}
+                        margin={{ top: 22, right: 10, left: 10, bottom: 0 }}
+                        barCategoryGap={18}
+                    >
+                        {/* Inverted scale so bars "hang" from top down to baseline */}
+                        <YAxis hide domain={[0, Math.max(...chartData.map((d) => (typeof d.base === "number" ? d.base : 0) + (typeof d.value === "number" ? d.value : 0)), 1)]} reversed />
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" opacity={0.12} vertical={false} />
+                        <XAxis
+                            dataKey="name"
+                            tick={(props) => <CustomAxisTick {...props} />}
+                            axisLine={false}
+                            tickLine={false}
+                            interval={0}
+                        />
+                        {/* No Y axis (as requested) */}
+                        <Tooltip
+                            content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                    const datum = chartData.find((d) => d.name === label);
+                                    const rawValue = datum?.value as number | null | undefined;
+                                    return (
+                                        <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-xl max-w-xs">
+                                            <p className="text-[11px] text-foreground font-medium mb-1.5">{datum?.fullName || label}</p>
+                                            <div className="flex items-center justify-between gap-4 text-[11px]">
+                                                <span className="text-muted-foreground">Giá trị</span>
+                                                <span className="font-mono font-semibold text-foreground">{rawValue == null ? "—" : formatCompact(rawValue)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            }}
+                        />
+
+                        {/* Invisible base bar to create floating columns */}
+                        <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
+
+                        <Bar dataKey="value" stackId="wf" isAnimationActive={false}>
+                            {chartData.map((entry, idx) => {
+                                const isTotal = entry.key === data.total_key;
+                                return (
+                                    <Cell
+                                        key={idx}
+                                        fill={colors[entry.key] || (isTotal ? "#16a34a" : "#94a3b8")}
+                                    />
+                                );
+                            })}
+                            <LabelList
+                                dataKey="value"
+                                position="insideTop"
+                                offset={-6}
+                                className="fill-foreground text-[10px] font-medium"
+                                formatter={(v: any) => (v === null || v === undefined ? "" : formatCompact(Number(v)))}
+                            />
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+}
+
+
+export function ToolkitTab({ symbol, period, limit }: ToolkitTabProps) {
+    const [data, setData] = useState<ToolkitResponse | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await FinancialsAPI.getToolkit(symbol, period, limit);
+            setData(result);
+        } catch (err) {
+            console.error("Failed to fetch toolkit data:", err);
+            setError("Không thể tải dữ liệu toolkit");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [symbol, period, limit]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     if (isLoading) {
         return (
@@ -250,263 +369,72 @@ export function ToolkitTab({ symbol }: ToolkitTabProps) {
         );
     }
 
-    const { summary } = data;
-
     return (
         <div className="h-full flex flex-col overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/30 bg-secondary/20">
-                <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-medium text-foreground">Toolkit</span>
-                    <span className="text-[10px] text-muted-foreground">
-                        ({data.type === "bank" ? "Ngân hàng" : "Doanh nghiệp"})
-                    </span>
-                </div>
-
-                <div className="text-[10px] text-muted-foreground">Năm gần nhất</div>
-            </div>
-
             {/* Content */}
             <div className="flex-1 overflow-auto p-3 space-y-4">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-6 gap-2">
-                    {[
-                        { label: "ROE", value: summary.roe, isPercent: true },
-                        { label: "ROA", value: summary.roa, isPercent: true },
-                        { label: "Nợ/Vốn CSH", value: summary.debt_equity, isPercent: false },
-                        { label: "Biên LN gộp", value: summary.gross_margin, isPercent: true },
-                        { label: "Biên LN ròng", value: summary.net_margin, isPercent: true },
-                        { label: "Vòng quay TS", value: summary.asset_turnover, isPercent: false },
-                    ].map((item) => (
-                        <div
-                            key={item.label}
-                            className="bg-secondary/30 rounded-lg p-2.5 border border-border/20"
-                        >
-                            <div className="text-[10px] text-muted-foreground mb-1">{item.label}</div>
-                            <div className="text-sm font-semibold text-foreground">
-                                {item.isPercent
-                                    ? formatPercent(item.value)
-                                    : item.value !== null
-                                      ? item.value.toFixed(2)
-                                      : "—"}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Charts Row */}
+                {/* 8 Charts in responsive grid (2 columns) */}
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Asset Composition Chart */}
-                    <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
-                        <div className="text-[11px] font-medium text-foreground mb-3">
-                            Cơ cấu tài sản
-                        </div>
-                        <div className="h-[200px]">
-                            {assetChartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={assetChartData}
-                                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                    >
-                                        <CartesianGrid
-                                            strokeDasharray="3 3"
-                                            className="stroke-border"
-                                            opacity={0.3}
-                                            vertical={false}
-                                        />
-                                        <XAxis
-                                            dataKey="period"
-                                            tick={(props) => <CustomAxisTick {...props} />}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            tick={(props) => <CustomYAxisTick {...props} />}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            width={55}
-                                        />
-                                        <Tooltip content={<StackedTooltip />} />
-                                        <Legend content={<CustomLegend />} />
-                                        {data.asset_composition.series
-                                            .filter((s) => s.key !== "total_asset")
-                                            .map((s) => (
-                                                <Bar
-                                                    key={s.key}
-                                                    dataKey={s.key}
-                                                    name={s.name}
-                                                    stackId="asset"
-                                                    fill={ASSET_COLORS[s.key as keyof typeof ASSET_COLORS] || "#888"}
-                                                />
-                                            ))}
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                                    Không có dữ liệu
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    {/* Chart 1: Cơ cấu tài sản */}
+                    {data.asset_compare && data.asset_composition.labels.length === 1 ? (
+                        <SinglePeriodCompareChart
+                            title="1. Cơ cấu tài sản"
+                            data={data.asset_compare}
+                            colors={{ ...ASSET_COLORS, total_asset: "#64748b" }}
+                        />
+                    ) : (
+                        <StackedChart
+                            title="1. Cơ cấu tài sản"
+                            data={data.asset_composition}
+                            colors={ASSET_COLORS}
+                        />
+                    )}
 
-                    {/* Revenue Composition Chart */}
-                    <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
-                        <div className="text-[11px] font-medium text-foreground mb-3">
-                            Cơ cấu doanh thu
-                        </div>
-                        <div className="h-[200px]">
-                            {revenueChartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={revenueChartData}
-                                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                    >
-                                        <CartesianGrid
-                                            strokeDasharray="3 3"
-                                            className="stroke-border"
-                                            opacity={0.3}
-                                            vertical={false}
-                                        />
-                                        <XAxis
-                                            dataKey="period"
-                                            tick={(props) => <CustomAxisTick {...props} />}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            tick={(props) => <CustomYAxisTick {...props} />}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            width={55}
-                                        />
-                                        <Tooltip content={<StackedTooltip />} />
-                                        <Legend content={<CustomLegend />} />
-                                        {data.revenue_composition.series.map((s) => (
-                                            <Bar
-                                                key={s.key}
-                                                dataKey={s.key}
-                                                name={s.name}
-                                                stackId="revenue"
-                                                fill={REVENUE_COLORS[s.key as keyof typeof REVENUE_COLORS] || "#888"}
-                                            />
-                                        ))}
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                                    Không có dữ liệu
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                    {/* Chart 2: Cơ cấu vốn chủ & nợ phải trả */}
+                    {data.liability_compare && data.liability_equity.labels.length === 1 ? (
+                        <SinglePeriodCompareChart
+                            title="2. Cơ cấu vốn chủ & nợ phải trả"
+                            data={data.liability_compare}
+                            colors={{ ...LIABILITY_COLORS, total_sources: "#64748b" }}
+                        />
+                    ) : (
+                        <StackedChart
+                            title="2. Cơ cấu vốn chủ & nợ phải trả"
+                            data={data.liability_equity}
+                            colors={LIABILITY_COLORS}
+                        />
+                    )}
 
-                {/* YoY Comparison Chart */}
-                <div className="bg-secondary/20 rounded-lg p-3 border border-border/20">
-                    <div className="text-[11px] font-medium text-foreground mb-3">
-                        So sánh tăng trưởng ({period === "year" ? "YoY" : "QoQ"})
-                    </div>
-                    <div className="h-[180px]">
-                        {comparisonChartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart
-                                    data={comparisonChartData}
-                                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                >
-                                    <CartesianGrid
-                                        strokeDasharray="3 3"
-                                        className="stroke-border"
-                                        opacity={0.3}
-                                        vertical={false}
-                                    />
-                                    <XAxis
-                                        dataKey="period"
-                                        tick={(props) => <CustomAxisTick {...props} />}
-                                        axisLine={false}
-                                        tickLine={false}
-                                    />
-                                    <YAxis
-                                        tick={(props) => <CustomYAxisTick {...props} isPercent />}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        width={45}
-                                        domain={["auto", "auto"]}
-                                    />
-                                    <Tooltip
-                                        content={({ active, payload, label }) => {
-                                            if (active && payload && payload.length) {
-                                                return (
-                                                    <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-xl">
-                                                        <p className="text-[11px] text-foreground font-medium mb-1.5">
-                                                            {label}
-                                                        </p>
-                                                        {payload.map((entry, index) => {
-                                                            const yoyInfo = formatYoY(entry.value as number);
-                                                            return (
-                                                                <div
-                                                                    key={index}
-                                                                    className="flex items-center justify-between gap-4 text-[11px]"
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div
-                                                                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                                                                            style={{ backgroundColor: entry.color }}
-                                                                        />
-                                                                        <span className="text-muted-foreground">
-                                                                            {entry.name}
-                                                                        </span>
-                                                                    </div>
-                                                                    <span className={cn("font-mono font-semibold", yoyInfo.color)}>
-                                                                        {yoyInfo.text}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        }}
-                                    />
-                                    <Legend content={<CustomLegend />} />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="total_asset_yoy"
-                                        name="Tổng tài sản"
-                                        stroke="#3b82f6"
-                                        strokeWidth={2}
-                                        dot={{ fill: "#3b82f6", strokeWidth: 0, r: 3 }}
-                                        activeDot={{ r: 5 }}
-                                        connectNulls
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="core_revenue_yoy"
-                                        name="Doanh thu thuần"
-                                        stroke="#00c076"
-                                        strokeWidth={2}
-                                        dot={{ fill: "#00c076", strokeWidth: 0, r: 3 }}
-                                        activeDot={{ r: 5 }}
-                                        connectNulls
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="net_profit_yoy"
-                                        name="LN sau thuế"
-                                        stroke="#f59e0b"
-                                        strokeWidth={2}
-                                        dot={{ fill: "#f59e0b", strokeWidth: 0, r: 3 }}
-                                        activeDot={{ r: 5 }}
-                                        connectNulls
-                                    />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                                Không có dữ liệu
-                            </div>
-                        )}
-                    </div>
+                    {/* Chart 3: Cơ cấu doanh thu */}
+                    {data.revenue_compare && data.revenue_composition.labels.length === 1 ? (
+                        <SinglePeriodCompareChart
+                            title="3. Cơ cấu doanh thu"
+                            data={data.revenue_compare}
+                            colors={{ ...REVENUE_COLORS, total: "#64748b" }}
+                        />
+                    ) : (
+                        <StackedChart
+                            title="3. Cơ cấu doanh thu"
+                            data={data.revenue_composition}
+                            colors={REVENUE_COLORS}
+                        />
+                    )}
+
+                    {/* Chart 4: Cơ cấu chi phí */}
+                    {data.expense_compare && data.expense_composition.labels.length === 1 ? (
+                        <SinglePeriodCompareChart
+                            title="4. Cơ cấu chi phí"
+                            data={data.expense_compare}
+                            colors={{ ...EXPENSE_COLORS, total: "#64748b" }}
+                        />
+                    ) : (
+                        <StackedChart
+                            title="4. Cơ cấu chi phí"
+                            data={data.expense_composition}
+                            colors={EXPENSE_COLORS}
+                        />
+                    )}
+
                 </div>
             </div>
         </div>

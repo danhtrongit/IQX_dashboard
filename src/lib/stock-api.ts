@@ -173,9 +173,10 @@ export interface RatioResponse {
 }
 
 // ==================== Toolkit API Types ====================
+// Toolkit spec from toolkit.pdf - 8 charts
 
 /**
- * Toolkit summary metrics
+ * Toolkit summary metrics - 5 cards
  */
 export interface ToolkitSummary {
     roe: number | null;
@@ -183,7 +184,6 @@ export interface ToolkitSummary {
     debt_equity: number | null;
     gross_margin: number | null;
     net_margin: number | null;
-    asset_turnover: number | null;
 }
 
 /**
@@ -213,35 +213,83 @@ export interface ToolkitComposition {
 }
 
 /**
- * Toolkit comparison metric with YoY
+ * Toolkit bridge item for waterfall charts
  */
-export interface ToolkitComparisonMetric {
+export interface ToolkitBridgeItem {
     key: string;
     name: string;
     values: (number | null)[];
-    yoy: (number | null)[];
+    bridge_type: 'start' | 'flow' | 'end';
 }
 
 /**
- * Toolkit comparison data
+ * Toolkit bridge chart for cash flow analysis
  */
-export interface ToolkitComparison {
+export interface ToolkitBridgeChart {
     labels: string[];
-    metrics: ToolkitComparisonMetric[];
+    items: ToolkitBridgeItem[];
 }
 
 /**
- * Toolkit response
+ * Net cash flow data
  */
+export interface ToolkitNetCashFlow {
+    labels: string[];
+    cfo: (number | null)[];
+    cfi: (number | null)[];
+    cff: (number | null)[];
+    delta_cash: (number | null)[];
+}
+
+/**
+ * Toolkit response - 8 charts per toolkit.pdf spec
+ */
+
+
+export interface ToolkitCompareItem {
+    key: string;
+    name: string;
+    value: number | null;
+    percent_of_total: number | null;
+}
+
+export interface ToolkitSinglePeriodCompare {
+    period_label: string;
+    total_key: string;
+    total_name: string;
+    total_value: number | null;
+    items: ToolkitCompareItem[];
+}
 export interface ToolkitResponse {
     symbol: string;
     type: 'bank' | 'non-bank';
     period: string;
     limit: number;
     summary: ToolkitSummary;
+    // Chart 1: Cơ cấu tài sản
     asset_composition: ToolkitComposition;
+    // Chart 2: Cơ cấu vốn chủ & nợ phải trả
+    liability_equity: ToolkitComposition;
+    // Chart 3: Cơ cấu doanh thu
     revenue_composition: ToolkitComposition;
-    comparison: ToolkitComparison;
+    // Chart 4: Cơ cấu chi phí
+    expense_composition: ToolkitComposition;
+    // Chart 5: HĐKD bridge (CFO)
+    cfo_bridge: ToolkitBridgeChart;
+    // Chart 6: HĐĐT bridge (CFI)
+    cfi_bridge: ToolkitBridgeChart;
+    // Chart 7: HĐTC bridge (CFF)
+    cff_bridge: ToolkitBridgeChart;
+    // Chart 8: Lưu chuyển tiền tệ thuần
+    net_cash_flow: ToolkitNetCashFlow;
+    asset_compare?: ToolkitSinglePeriodCompare | null;
+    net_cash_compare?: ToolkitSinglePeriodCompare | null;
+    cff_compare?: ToolkitSinglePeriodCompare | null;
+    cfi_compare?: ToolkitSinglePeriodCompare | null;
+    cfo_compare?: ToolkitSinglePeriodCompare | null;
+    expense_compare?: ToolkitSinglePeriodCompare | null;
+    revenue_compare?: ToolkitSinglePeriodCompare | null;
+    liability_compare?: ToolkitSinglePeriodCompare | null;
 }
 
 // ==================== Insight API Types ====================
@@ -462,7 +510,7 @@ export const FinancialsAPI = {
     getToolkit: async (
         symbol: string,
         period = 'year',
-        limit = 8,
+        limit = 3,
         lang = 'vi'
     ): Promise<ToolkitResponse> => {
         const response = await api.get<ToolkitResponse>(`/financials/${symbol}/toolkit`, {
